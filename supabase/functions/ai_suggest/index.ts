@@ -44,22 +44,36 @@ serve(async (req) => {
   }
 
   try {
-    // Debug environment variables with extreme detail
+    // Try multiple ways to access the environment variable
     const allEnvVars = Deno.env.toObject();
-    console.log(`[${timestamp}] All available environment variables:`, Object.keys(allEnvVars));
-    console.log(`[${timestamp}] Environment variables object:`, allEnvVars);
     
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    const keyFromObject = allEnvVars['OPENAI_API_KEY'];
+    // Method 1: Standard Deno.env.get()
+    let OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     
-    console.log(`[${timestamp}] OpenAI API key via Deno.env.get():`, OPENAI_API_KEY ? `Found (length: ${OPENAI_API_KEY.length}, starts with: ${OPENAI_API_KEY.substring(0, 7)}...)` : 'NOT FOUND');
-    console.log(`[${timestamp}] OpenAI API key via object:`, keyFromObject ? `Found (length: ${keyFromObject.length}, starts with: ${keyFromObject.substring(0, 7)}...)` : 'NOT FOUND');
-    console.log(`[${timestamp}] Key comparison:`, { 
-      deno_get: typeof OPENAI_API_KEY, 
-      object_get: typeof keyFromObject,
-      are_equal: OPENAI_API_KEY === keyFromObject,
-      deno_truthy: !!OPENAI_API_KEY,
-      object_truthy: !!keyFromObject
+    // Method 2: Direct from environment object
+    if (!OPENAI_API_KEY) {
+      OPENAI_API_KEY = allEnvVars['OPENAI_API_KEY'];
+    }
+    
+    // Method 3: Try different case variations (just in case)
+    if (!OPENAI_API_KEY) {
+      OPENAI_API_KEY = Deno.env.get('openai_api_key') || allEnvVars['openai_api_key'];
+    }
+    
+    // Method 4: Check for any key containing "OPENAI"
+    if (!OPENAI_API_KEY) {
+      const openaiKeys = Object.keys(allEnvVars).filter(key => key.toLowerCase().includes('openai'));
+      if (openaiKeys.length > 0) {
+        OPENAI_API_KEY = allEnvVars[openaiKeys[0]];
+        console.log(`[${timestamp}] Found OpenAI key with different name:`, openaiKeys[0]);
+      }
+    }
+    
+    console.log(`[${timestamp}] Environment check:`, {
+      totalEnvVars: Object.keys(allEnvVars).length,
+      hasOpenAIKey: !!OPENAI_API_KEY,
+      keySource: OPENAI_API_KEY ? 'found' : 'missing',
+      allKeys: Object.keys(allEnvVars)
     });
     
     if (!OPENAI_API_KEY) {
