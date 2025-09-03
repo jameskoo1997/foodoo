@@ -46,94 +46,86 @@ const UnifiedRecommendations = () => {
     setLoading(true);
     console.log('Fetching recommendations for cart items:', cartItemIds);
     try {
-      // Fetch MBA recommendations (cart-based)
-      const mbaPromise = supabase
+      // First, get the recommendation IDs
+      const { data: mbaRecs, error: mbaError } = await supabase
         .from('recommendations')
-        .select(`
-          confidence,
-          recommended_item_id,
-          menu_items!recommendations_recommended_item_id_fkey (
-            id,
-            name,
-            price,
-            image_url,
-            is_active
-          )
-        `)
+        .select('confidence, recommended_item_id')
         .in('item_id', cartItemIds)
         .order('confidence', { ascending: false })
-        .limit(10);  // Get more results to filter active items
+        .limit(10);
 
-      // Fetch personalized recommendations (user-based)  
-      const personalizedPromise = user ? supabase
+      const { data: personalizedRecs, error: personalizedError } = user ? await supabase
         .from('recommendations')
-        .select(`
-          confidence,
-          lift,
-          support,
-          menu_items!recommendations_recommended_item_id_fkey (
-            id,
-            name,
-            price,
-            image_url,
-            is_active
-          )
-        `)
-        .eq('menu_items.is_active', true)
+        .select('confidence, lift, support, recommended_item_id')
         .order('support', { ascending: false })
         .order('lift', { ascending: false })
-        .limit(5) : Promise.resolve({ data: [], error: null });
+        .limit(10) : { data: [], error: null };
 
-      const [mbaResult, personalizedResult] = await Promise.all([mbaPromise, personalizedPromise]);
+      console.log('MBA recommendations result:', { data: mbaRecs, error: mbaError });
+      console.log('Personalized recommendations result:', { data: personalizedRecs, error: personalizedError });
 
-      console.log('MBA recommendations result:', mbaResult);
-      console.log('Personalized recommendations result:', personalizedResult);
+      if (mbaError) throw mbaError;
+      if (personalizedError) throw personalizedError;
 
-      if (mbaResult.error) throw mbaResult.error;
-      if (personalizedResult.error) throw personalizedResult.error;
+      // Get all unique recommended item IDs
+      const mbaItemIds = mbaRecs?.map(r => r.recommended_item_id) || [];
+      const personalizedItemIds = personalizedRecs?.map(r => r.recommended_item_id) || [];
+      const allItemIds = [...new Set([...mbaItemIds, ...personalizedItemIds])];
+
+      // Fetch menu item details for all recommended items
+      let menuItems = [];
+      if (allItemIds.length > 0) {
+        const { data: menuItemsData, error: menuError } = await supabase
+          .from('menu_items')
+          .select('id, name, price, image_url, is_active')
+          .in('id', allItemIds)
+          .eq('is_active', true);
+
+        if (menuError) throw menuError;
+        menuItems = menuItemsData || [];
+      }
+
+      console.log('Fetched menu items:', menuItems);
 
       // Process MBA recommendations
       const seenIds = new Set(cartItemIds);
-      const mbaRecs = new Map();
+      const mbaRecsMap = new Map();
       
-      mbaResult.data?.forEach(rec => {
-        // Filter out inactive items here instead of in query
-        if (!rec.menu_items?.is_active) return;
-        
-        const itemId = rec.menu_items.id;
-        if (!seenIds.has(itemId) && !mbaRecs.has(itemId)) {
-          mbaRecs.set(itemId, {
-            id: itemId,
-            name: rec.menu_items.name,
-            price: rec.menu_items.price,
-            image_url: rec.menu_items.image_url,
+      mbaRecs?.forEach(rec => {
+        const menuItem = menuItems.find(item => item.id === rec.recommended_item_id);
+        if (menuItem && !seenIds.has(menuItem.id) && !mbaRecsMap.has(menuItem.id)) {
+          mbaRecsMap.set(menuItem.id, {
+            id: menuItem.id,
+            name: menuItem.name,
+            price: menuItem.price,
+            image_url: menuItem.image_url,
             source: 'mba' as const,
           });
-          seenIds.add(itemId);
+          seenIds.add(menuItem.id);
         }
       });
 
       // Process personalized recommendations  
-      const personalizedRecs = new Map();
-      personalizedResult.data?.forEach(rec => {
-        const itemId = rec.menu_items.id;
-        if (!seenIds.has(itemId) && !personalizedRecs.has(itemId)) {
-          personalizedRecs.set(itemId, {
-            id: itemId,
-            name: rec.menu_items.name,
-            price: rec.menu_items.price,
-            image_url: rec.menu_items.image_url,
+      const personalizedRecsMap = new Map();
+      personalizedRecs?.forEach(rec => {
+        const menuItem = menuItems.find(item => item.id === rec.recommended_item_id);
+        if (menuItem && !seenIds.has(menuItem.id) && !personalizedRecsMap.has(menuItem.id)) {
+          personalizedRecsMap.set(menuItem.id, {
+            id: menuItem.id,
+            name: menuItem.name,
+            price: menuItem.price,
+            image_url: menuItem.image_url,
             source: 'personalized' as const,
           });
-          seenIds.add(itemId);
+          seenIds.add(menuItem.id);
         }
       });
 
-      setMbaRecommendations(Array.from(mbaRecs.values()));
-      setPersonalizedRecommendations(Array.from(personalizedRecs.values()));
+      setMbaRecommendations(Array.from(mbaRecsMap.values()));
+      setPersonalizedRecommendations(Array.from(personalizedRecsMap.values()));
       
-      console.log('Final MBA recommendations:', Array.from(mbaRecs.values()));
-      console.log('Final personalized recommendations:', Array.from(personalizedRecs.values()));
+      console.log('Final MBA recommendations:', Array.from(mbaRecsMap.values()));
+      console.log('Final personalized recommendations:', Array.from(personalizedRecsMap.values()));
     } catch (error) {
       console.error('Error fetching recommendations:', error);
       setMbaRecommendations([]);
