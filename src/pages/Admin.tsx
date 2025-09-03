@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import Header from '@/components/Header';
+import { DeployButton } from '@/components/DeployButton';
 import { Upload, FileText, Database, Sparkles } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -375,6 +376,11 @@ export const Admin = () => {
           </CardContent>
         </Card>
 
+        <Separator className="my-8" />
+        
+        {/* Deployment Section */}
+        <DeployButton />
+        
         <Separator className="my-8" />
         
         <div className="grid lg:grid-cols-2 gap-8">

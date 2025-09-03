@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const Header = () => {
-  const { user, signOut } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
   const { items } = useCart();
   const location = useLocation();
   
@@ -83,18 +83,22 @@ const Header = () => {
                       My Orders
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin" className="flex items-center">
-                      <User className="w-4 h-4 mr-2" />
-                      Admin
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/analytics" className="flex items-center">
-                      <TrendingUp className="w-4 h-4 mr-2" />
-                      Analytics
-                    </Link>
-                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin" className="flex items-center">
+                          <User className="w-4 h-4 mr-2" />
+                          Admin
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/analytics" className="flex items-center">
+                          <TrendingUp className="w-4 h-4 mr-2" />
+                          Analytics
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuItem onClick={signOut} className="flex items-center">
                     <LogOut className="w-4 h-4 mr-2" />
                     Sign Out
