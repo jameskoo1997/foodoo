@@ -102,6 +102,11 @@ export const AISuggestionsProvider = ({ children }: { children: ReactNode }) => 
         return;
       }
 
+      // Debug the actual response structure
+      console.log('AI suggestions: Raw response type:', typeof response);
+      console.log('AI suggestions: Raw response:', response);
+      console.log('AI suggestions: Response keys:', Object.keys(response || {}));
+      
       const aiResponse: AISuggestionsResponse = response;
       
       if (!aiResponse.success || aiResponse.fallback) {
