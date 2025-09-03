@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,9 @@ interface PaymentMethod {
 const UnifiedRecommendations = () => {
   const { items, addItem } = useCart();
   const { user } = useAuth();
-  const cartItemIds = items.map(item => item.id);
+  
+  // Memoize cartItemIds to prevent infinite re-renders
+  const cartItemIds = useMemo(() => items.map(item => item.id), [items]);
   
   // Single AI suggestions call per cart state
   const { aiSuggestions, loading: aiLoading } = useAISuggestions(cartItemIds);
@@ -40,7 +42,7 @@ const UnifiedRecommendations = () => {
 
     // Fetch both types of recommendations in parallel - only once per cart change
     fetchAllRecommendations();
-  }, [cartItemIds]);
+  }, [cartItemIds.join(',')]); // Use join to create a stable dependency
 
   const fetchAllRecommendations = async () => {
     setLoading(true);
@@ -166,19 +168,22 @@ const UnifiedRecommendations = () => {
     allRecommendations: allRecommendations.length
   });
 
-  // Show recommendations if we have any, or show loading/empty state
+  // If we have no cart items, don't show anything
+  if (cartItemIds.length === 0) return null;
+  
+  // If still loading, show loading state
   if (isLoading) {
-    return cartItemIds.length > 0 ? (
+    return (
       <Card>
         <CardContent className="py-8 text-center">
           <p className="text-muted-foreground">Loading recommendations...</p>
         </CardContent>
       </Card>
-    ) : null;
+    );
   }
 
-  // If not loading and we have no recommendations, show that
-  if (!hasRecommendations && cartItemIds.length > 0) {
+  // If not loading but no recommendations, show empty state  
+  if (!hasRecommendations) {
     return (
       <Card>
         <CardContent className="py-8 text-center">
@@ -187,8 +192,6 @@ const UnifiedRecommendations = () => {
       </Card>
     );
   }
-
-  if (!hasRecommendations) return null;
 
   return (
     <Card>
