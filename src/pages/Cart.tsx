@@ -61,9 +61,8 @@ const UnifiedRecommendations = () => {
           )
         `)
         .in('item_id', cartItemIds)
-        .eq('menu_items.is_active', true)
         .order('confidence', { ascending: false })
-        .limit(5);
+        .limit(10);  // Get more results to filter active items
 
       // Fetch personalized recommendations (user-based)  
       const personalizedPromise = user ? supabase
@@ -98,6 +97,9 @@ const UnifiedRecommendations = () => {
       const mbaRecs = new Map();
       
       mbaResult.data?.forEach(rec => {
+        // Filter out inactive items here instead of in query
+        if (!rec.menu_items?.is_active) return;
+        
         const itemId = rec.menu_items.id;
         if (!seenIds.has(itemId) && !mbaRecs.has(itemId)) {
           mbaRecs.set(itemId, {
