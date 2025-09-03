@@ -73,24 +73,44 @@ serve(async (req) => {
     console.log(`[${timestamp}] ==> FINAL RESULT: OpenAI API Key ${OPENAI_API_KEY ? 'FOUND' : 'NOT FOUND'}`);
     
     if (!OPENAI_API_KEY) {
-      console.log(`[${timestamp}] ==> CRITICAL: No OpenAI API key accessible. Returning fallback.`);
-      console.log(`[${timestamp}] ==> Available env vars containing 'OPENAI' or 'API':`, 
-        envKeys.filter(key => 
-          key.toLowerCase().includes('openai') || 
-          key.toLowerCase().includes('api')
-        )
-      );
+      console.log(`[${timestamp}] ==> CRITICAL: No OpenAI API key accessible. Using rule-based fallback.`);
       
+      // Get menu items for rule-based recommendations
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { user_id, cart_item_ids }: AIRequest = await req.json();
+      
+      // Get current cart items to avoid duplicates
+      const { data: cartItems } = await supabase
+        .from('menu_items')
+        .select('id, category')
+        .in('id', cart_item_ids);
+
+      // Get complementary items (different categories)
+      const cartCategories = cartItems?.map(item => item.category) || [];
+      
+      const { data: recommendations } = await supabase
+        .from('menu_items')
+        .select('id, name, price')
+        .eq('is_active', true)
+        .not('category', 'in', `(${cartCategories.join(',')})`)
+        .not('id', 'in', `(${cart_item_ids.join(',')})`)
+        .limit(3);
+
       return new Response(JSON.stringify({ 
-        success: false, 
-        error: 'OpenAI API key not accessible in edge function environment',
+        success: true,
+        suggestions: {
+          item_ids: recommendations?.map(item => item.id) || [],
+          rationale: 'Rule-based recommendations: complementary items from different categories'
+        },
         fallback: true,
         timestamp: timestamp,
         debug: {
-          totalEnvVars: envKeys.length,
-          functionVersion: 'COMPLETELY_REWRITTEN',
-          envVarsWithOpenAI: envKeys.filter(k => k.toLowerCase().includes('openai')),
-          envVarsWithAPI: envKeys.filter(k => k.toLowerCase().includes('api'))
+          functionVersion: 'RULE_BASED_FALLBACK',
+          apiKeyIssue: true,
+          recommendationsCount: recommendations?.length || 0
         }
       }), {
         status: 200,
