@@ -10,7 +10,6 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useAISuggestions } from '@/hooks/useAISuggestions';
-import { PersonalizedRecommendations } from '@/components/PersonalizedRecommendations';
 import { ShoppingCart, Minus, Plus, Trash2, Sparkles, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import Header from '@/components/Header';
@@ -20,28 +19,34 @@ interface PaymentMethod {
   name: string;
 }
 
-const CartRecommendations = () => {
+const UnifiedRecommendations = () => {
   const { items, addItem } = useCart();
+  const { user } = useAuth();
   const cartItemIds = items.map(item => item.id);
   
-  // Use centralized AI suggestions directly
+  // Single AI suggestions call per cart state
   const { aiSuggestions, loading: aiLoading } = useAISuggestions(cartItemIds);
+  
   const [mbaRecommendations, setMbaRecommendations] = useState<any[]>([]);
-  const [mbaLoading, setMbaLoading] = useState(false);
+  const [personalizedRecommendations, setPersonalizedRecommendations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (cartItemIds.length === 0) {
       setMbaRecommendations([]);
+      setPersonalizedRecommendations([]);
       return;
     }
 
-    fetchMbaRecommendations();
+    // Fetch both types of recommendations in parallel - only once per cart change
+    fetchAllRecommendations();
   }, [cartItemIds]);
 
-  const fetchMbaRecommendations = async () => {
-    setMbaLoading(true);
+  const fetchAllRecommendations = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Fetch MBA recommendations (cart-based)
+      const mbaPromise = supabase
         .from('recommendations')
         .select(`
           confidence,
@@ -57,18 +62,41 @@ const CartRecommendations = () => {
         .in('item_id', cartItemIds)
         .eq('menu_items.is_active', true)
         .order('confidence', { ascending: false })
-        .limit(3);
+        .limit(5);
 
-      if (error) throw error;
+      // Fetch personalized recommendations (user-based)  
+      const personalizedPromise = user ? supabase
+        .from('recommendations')
+        .select(`
+          confidence,
+          lift,
+          support,
+          menu_items!recommendations_recommended_item_id_fkey (
+            id,
+            name,
+            price,
+            image_url,
+            is_active
+          )
+        `)
+        .eq('menu_items.is_active', true)
+        .order('support', { ascending: false })
+        .order('lift', { ascending: false })
+        .limit(5) : Promise.resolve({ data: [], error: null });
 
-      // Deduplicate and exclude cart items
+      const [mbaResult, personalizedResult] = await Promise.all([mbaPromise, personalizedPromise]);
+
+      if (mbaResult.error) throw mbaResult.error;
+      if (personalizedResult.error) throw personalizedResult.error;
+
+      // Process MBA recommendations
       const seenIds = new Set(cartItemIds);
-      const recommendations = new Map();
-
-      data?.forEach(rec => {
+      const mbaRecs = new Map();
+      
+      mbaResult.data?.forEach(rec => {
         const itemId = rec.menu_items.id;
-        if (!seenIds.has(itemId) && !recommendations.has(itemId)) {
-          recommendations.set(itemId, {
+        if (!seenIds.has(itemId) && !mbaRecs.has(itemId)) {
+          mbaRecs.set(itemId, {
             id: itemId,
             name: rec.menu_items.name,
             price: rec.menu_items.price,
@@ -79,51 +107,72 @@ const CartRecommendations = () => {
         }
       });
 
-      setMbaRecommendations(Array.from(recommendations.values()));
+      // Process personalized recommendations  
+      const personalizedRecs = new Map();
+      personalizedResult.data?.forEach(rec => {
+        const itemId = rec.menu_items.id;
+        if (!seenIds.has(itemId) && !personalizedRecs.has(itemId)) {
+          personalizedRecs.set(itemId, {
+            id: itemId,
+            name: rec.menu_items.name,
+            price: rec.menu_items.price,
+            image_url: rec.menu_items.image_url,
+            source: 'personalized' as const,
+          });
+          seenIds.add(itemId);
+        }
+      });
+
+      setMbaRecommendations(Array.from(mbaRecs.values()));
+      setPersonalizedRecommendations(Array.from(personalizedRecs.values()));
     } catch (error) {
-      console.error('Error fetching MBA recommendations:', error);
+      console.error('Error fetching recommendations:', error);
       setMbaRecommendations([]);
+      setPersonalizedRecommendations([]);
     } finally {
-      setMbaLoading(false);
+      setLoading(false);
     }
   };
 
-  // Combine AI and MBA recommendations
+  // Combine all recommendations with AI taking priority
   const allRecommendations = [
-    ...aiSuggestions.map(ai => ({
-      ...ai,
-      source: 'ai' as const
-    })),
-    ...mbaRecommendations.filter(mba => 
-      !aiSuggestions.some(ai => ai.id === mba.id)
-    )
-  ].slice(0, 3);
+    ...aiSuggestions.map(ai => ({ ...ai, section: 'ai' })),
+    ...mbaRecommendations.map(mba => ({ ...mba, section: 'cart' })),
+    ...personalizedRecommendations.map(p => ({ ...p, section: 'personalized' }))
+  ];
 
-  const loading = aiLoading || mbaLoading;
+  // Remove duplicates and limit to 6 total
+  const seenIds = new Set();
+  const uniqueRecommendations = allRecommendations.filter(rec => {
+    if (seenIds.has(rec.id)) return false;
+    seenIds.add(rec.id);
+    return true;
+  }).slice(0, 6);
+
+  const isLoading = aiLoading || loading;
   const hasAI = aiSuggestions.length > 0;
+  const hasRecommendations = uniqueRecommendations.length > 0;
 
-  if (loading || allRecommendations.length === 0) return null;
+  if (isLoading || !hasRecommendations) return null;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
-          Complete your order
-          {hasAI && (
-            <Sparkles className="w-4 h-4 text-primary" />
-          )}
+          {hasAI ? 'AI-Powered Recommendations' : 'Recommended for You'}
+          {hasAI && <Sparkles className="w-4 h-4 text-primary" />}
         </CardTitle>
         <CardDescription>
           {hasAI 
-            ? 'AI-powered suggestions based on your preferences' 
-            : 'Customers who bought these items also purchased'
+            ? 'Smart suggestions powered by AI based on your cart and preferences' 
+            : 'Popular items and personalized suggestions based on your preferences'
           }
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex space-x-4 overflow-x-auto pb-2">
-          {allRecommendations.map(rec => (
-            <div key={rec.id} className="flex-shrink-0 w-48 p-3 bg-muted/50 rounded-lg">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {uniqueRecommendations.map(rec => (
+            <div key={rec.id} className="p-3 bg-muted/50 rounded-lg">
               {rec.image_url && (
                 <div className="w-full h-24 bg-background rounded-md overflow-hidden mb-3">
                   <img
@@ -392,8 +441,8 @@ export const Cart = () => {
                 </Card>
               ))}
               
-              {/* Cart-based Recommendations */}
-              <CartRecommendations />
+              {/* Unified Recommendations - Single API call, no jumping */}
+              <UnifiedRecommendations />
             </div>
             
             {/* Order Summary */}
