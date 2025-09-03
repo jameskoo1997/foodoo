@@ -41,6 +41,8 @@ serve(async (req) => {
 
   try {
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    console.log('Checking OpenAI API key availability:', OPENAI_API_KEY ? 'Found' : 'Not found');
+    
     if (!OPENAI_API_KEY) {
       console.log('OpenAI API key not found, falling back to rule-based recommendations');
       return new Response(JSON.stringify({ 
