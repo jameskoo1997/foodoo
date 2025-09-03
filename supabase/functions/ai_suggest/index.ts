@@ -34,37 +34,48 @@ interface UserPreferences {
 }
 
 serve(async (req) => {
-  console.log(`[${new Date().toISOString()}] AI Suggest function called`);
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] AI Suggest function called - NEW VERSION`);
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log(`[${timestamp}] Handling CORS preflight`);
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Debug environment variables
+    const allEnvVars = Deno.env.toObject();
+    console.log(`[${timestamp}] All available environment variables:`, Object.keys(allEnvVars));
+    
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    console.log(`[${new Date().toISOString()}] Checking OpenAI API key availability:`, OPENAI_API_KEY ? 'Found' : 'Not found');
-    console.log(`[${new Date().toISOString()}] Available env vars:`, Object.keys(Deno.env.toObject()));
+    console.log(`[${timestamp}] OpenAI API key check:`, OPENAI_API_KEY ? `Found (length: ${OPENAI_API_KEY.length})` : 'NOT FOUND');
     
     if (!OPENAI_API_KEY) {
-      console.log(`[${new Date().toISOString()}] OpenAI API key not found, falling back to rule-based recommendations`);
+      console.log(`[${timestamp}] OpenAI API key not found, returning fallback response`);
       return new Response(JSON.stringify({ 
         success: false, 
-        error: 'API key not configured',
+        error: 'API key not configured - function cannot access OPENAI_API_KEY env var',
         fallback: true,
-        timestamp: new Date().toISOString()
+        timestamp: timestamp,
+        debug: {
+          availableEnvVars: Object.keys(allEnvVars),
+          functionVersion: 'NEW_VERSION'
+        }
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    console.log(`[${timestamp}] OpenAI API key found, proceeding with AI suggestions`);
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { user_id, cart_item_ids }: AIRequest = await req.json();
-    console.log('AI Suggest request:', { user_id, cart_item_ids });
+    console.log(`[${timestamp}] AI Suggest request:`, { user_id, cart_item_ids });
 
     // 1. Get top 10 menu items for context
     const { data: menuItems, error: menuError } = await supabase
@@ -75,7 +86,7 @@ serve(async (req) => {
       .limit(10);
 
     if (menuError) {
-      console.error('Error fetching menu items:', menuError);
+      console.error(`[${timestamp}] Error fetching menu items:`, menuError);
       throw menuError;
     }
 
@@ -94,7 +105,7 @@ serve(async (req) => {
       .limit(6);
 
     if (mbaError) {
-      console.error('Error fetching MBA recommendations:', mbaError);
+      console.error(`[${timestamp}] Error fetching MBA recommendations:`, mbaError);
       // Continue without MBA recs
     }
 
@@ -152,6 +163,7 @@ serve(async (req) => {
     };
 
     // 5. Call OpenAI GPT-4
+    console.log(`[${timestamp}] Calling OpenAI API...`);
     const systemPrompt = `You are a restaurant recommender AI. Given cart items, MBA rules, and user history, return up to 3 concrete menu item IDs to suggest. 
 
 Guidelines:
@@ -183,19 +195,20 @@ Context: ${JSON.stringify(context)}`;
     });
 
     if (!openAIResponse.ok) {
-      console.error('OpenAI API error:', await openAIResponse.text());
-      throw new Error('OpenAI API request failed');
+      const errorText = await openAIResponse.text();
+      console.error(`[${timestamp}] OpenAI API error:`, errorText);
+      throw new Error(`OpenAI API request failed: ${errorText}`);
     }
 
     const aiResult = await openAIResponse.json();
-    console.log('OpenAI response:', aiResult);
+    console.log(`[${timestamp}] OpenAI response:`, aiResult);
 
     let suggestions;
     try {
       const content = aiResult.choices[0].message.content;
       suggestions = JSON.parse(content);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
+      console.error(`[${timestamp}] Failed to parse AI response:`, parseError);
       throw new Error('Invalid AI response format');
     }
 
@@ -206,23 +219,33 @@ Context: ${JSON.stringify(context)}`;
       rationale: suggestions.rationale || 'AI-powered recommendations based on your preferences'
     };
 
-    console.log('Final AI suggestions:', validSuggestions);
+    console.log(`[${timestamp}] Final AI suggestions:`, validSuggestions);
 
     return new Response(JSON.stringify({
       success: true,
-      suggestions: validSuggestions
+      suggestions: validSuggestions,
+      timestamp: timestamp,
+      debug: {
+        functionVersion: 'NEW_VERSION',
+        openaiUsed: true
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in ai_suggest function:', error);
+    console.error(`[${new Date().toISOString()}] Error in ai_suggest function:`, error);
     
     // Return graceful fallback response
     return new Response(JSON.stringify({ 
       success: false, 
       error: error.message,
-      fallback: true 
+      fallback: true,
+      timestamp: new Date().toISOString(),
+      debug: {
+        functionVersion: 'NEW_VERSION',
+        errorOccurred: true
+      }
     }), {
       status: 200, // Still return 200 for graceful fallback
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
