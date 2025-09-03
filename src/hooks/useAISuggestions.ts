@@ -28,37 +28,54 @@ export const useAISuggestions = (cartItemIds: string[]) => {
   const [loading, setLoading] = useState(false);
   const [hasFallback, setHasFallback] = useState(false);
   const [hasShownFallbackToast, setHasShownFallbackToast] = useState(false);
-  const [lastCartIds, setLastCartIds] = useState<string[]>([]);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [lastProcessedCartIds, setLastProcessedCartIds] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Only reset when cart items actually change (not on initial load)
-    const cartIdsChanged = isInitialized && JSON.stringify(lastCartIds) !== JSON.stringify(cartItemIds);
+    const currentCartKey = JSON.stringify(cartItemIds.sort());
     
-    if (cartIdsChanged) {
+    console.log('useAISuggestions effect triggered:', {
+      currentCartKey,
+      lastProcessedCartIds,
+      isProcessing,
+      cartItemIds: cartItemIds.length
+    });
+    
+    // Skip if we're already processing this exact cart state
+    if (isProcessing || currentCartKey === lastProcessedCartIds) {
+      console.log('Skipping AI suggestions call - already processing or same cart');
+      return;
+    }
+
+    // Reset state when cart changes
+    if (currentCartKey !== lastProcessedCartIds) {
+      console.log('Cart changed, resetting fallback state');
       setHasShownFallbackToast(false);
       setHasFallback(false);
-      setAISuggestions([]);
     }
-    
-    setLastCartIds(cartItemIds);
-    setIsInitialized(true);
 
     if (cartItemIds.length > 0) {
-      // Only fetch if we don't already have suggestions for this cart state
-      const shouldFetch = cartIdsChanged || !isInitialized || aiSuggestions.length === 0;
-      if (shouldFetch) {
-        fetchAISuggestions();
-      }
+      console.log('Calling fetchAISuggestions for cart:', cartItemIds);
+      setLastProcessedCartIds(currentCartKey);
+      fetchAISuggestions();
     } else {
+      console.log('Cart empty, clearing suggestions');
       setAISuggestions([]);
-      setHasShownFallbackToast(false);
       setHasFallback(false);
+      setHasShownFallbackToast(false);
+      setLastProcessedCartIds('');
     }
   }, [cartItemIds, user]);
 
   const fetchAISuggestions = async () => {
+    if (isProcessing) {
+      console.log('AI suggestions already processing, skipping');
+      return; // Prevent concurrent calls
+    }
+    
+    console.log('Starting AI suggestions fetch for cart:', cartItemIds);
+    setIsProcessing(true);
     setLoading(true);
     setHasFallback(false);
     
@@ -136,6 +153,7 @@ export const useAISuggestions = (cartItemIds: string[]) => {
       setHasFallback(true);
     } finally {
       setLoading(false);
+      setIsProcessing(false);
     }
   };
 
