@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 export interface AISuggestion {
   id: string;
@@ -26,6 +27,7 @@ export const useAISuggestions = (cartItemIds: string[]) => {
   const [aiSuggestions, setAISuggestions] = useState<AISuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasFallback, setHasFallback] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (cartItemIds.length > 0) {
@@ -58,6 +60,13 @@ export const useAISuggestions = (cartItemIds: string[]) => {
       
       if (!aiResponse.success || aiResponse.fallback) {
         setHasFallback(true);
+        if (aiResponse.fallback && cartItemIds.length > 0) {
+          toast({
+            title: 'Using rule-based recommendations',
+            description: 'AI suggestions are not available right now, showing market basket analysis instead.',
+            variant: 'default',
+          });
+        }
         return;
       }
 
@@ -85,6 +94,13 @@ export const useAISuggestions = (cartItemIds: string[]) => {
           source: 'ai' as const,
         })) || [];
 
+        if (suggestions.length > 0) {
+          toast({
+            title: 'AI suggestions available! ✨',
+            description: 'Enhanced recommendations are being powered by AI for better suggestions.',
+          });
+        }
+        
         setAISuggestions(suggestions);
       } else {
         setAISuggestions([]);

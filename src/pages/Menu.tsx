@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { PersonalizedRecommendations } from '@/components/PersonalizedRecommendations';
+import { EmptyState } from '@/components/EmptyStates';
 import { Search, ShoppingCart, Plus, Minus, Sparkles, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import Header from '@/components/Header';
@@ -197,9 +198,9 @@ const RecommendationsSection = ({ itemId, onAddToCart }: {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-6">Our Menu</h1>
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Our Menu</h1>
           
           {/* Personalized Recommendations */}
           <PersonalizedRecommendations className="mb-8" variant="menu" />
@@ -215,7 +216,7 @@ const RecommendationsSection = ({ itemId, onAddToCart }: {
             />
           </div>
           
-          {/* Category filters */}
+          {/* Category filters - responsive */}
           <div className="flex flex-wrap gap-2 mb-6">
             <Button
               variant={selectedCategory === 'all' ? 'default' : 'outline'}
@@ -230,6 +231,7 @@ const RecommendationsSection = ({ itemId, onAddToCart }: {
                 variant={selectedCategory === category ? 'default' : 'outline'}
                 onClick={() => setSelectedCategory(category)}
                 size="sm"
+                className="text-xs sm:text-sm"
               >
                 {category}
               </Button>
@@ -237,8 +239,8 @@ const RecommendationsSection = ({ itemId, onAddToCart }: {
           </div>
         </div>
 
-        {/* Menu items grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {/* Menu items grid - responsive */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
           {filteredItems.map(item => (
             <Card key={item.id} className="cursor-pointer hover:shadow-lg transition-shadow">
               <div onClick={() => openItemDetail(item)}>
@@ -252,18 +254,18 @@ const RecommendationsSection = ({ itemId, onAddToCart }: {
                   </div>
                 )}
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">{item.name}</CardTitle>
-                    <Badge variant="secondary">${item.price.toFixed(2)}</Badge>
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-base md:text-lg line-clamp-2">{item.name}</CardTitle>
+                    <Badge variant="secondary" className="text-xs md:text-sm">${item.price.toFixed(2)}</Badge>
                   </div>
                   {item.category && (
-                    <Badge variant="outline" className="w-fit">
+                    <Badge variant="outline" className="w-fit text-xs">
                       {item.category}
                     </Badge>
                   )}
                 </CardHeader>
                 <CardContent>
-                  <CardDescription className="text-sm mb-4">
+                  <CardDescription className="text-sm mb-4 line-clamp-3">
                     {item.description}
                   </CardDescription>
                 </CardContent>
@@ -286,8 +288,21 @@ const RecommendationsSection = ({ itemId, onAddToCart }: {
         </div>
 
         {filteredItems.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            No menu items found matching your criteria.
+          <div className="col-span-full">
+            <EmptyState
+              type="search"
+              title="No items found"
+              description={
+                searchQuery || selectedCategory !== 'all'
+                  ? "Try adjusting your search or filters to find what you're looking for."
+                  : "It looks like the menu is empty. Check back soon for delicious options!"
+              }
+              actionLabel={searchQuery || selectedCategory !== 'all' ? "Clear Filters" : undefined}
+              onAction={searchQuery || selectedCategory !== 'all' ? () => {
+                setSearchQuery('');
+                setSelectedCategory('all');
+              } : undefined}
+            />
           </div>
         )}
       </div>

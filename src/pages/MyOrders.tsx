@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { ChevronDown, ChevronUp, Receipt } from 'lucide-react';
+import { ChevronDown, ChevronUp, Receipt, ShoppingBag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { EmptyState } from '@/components/EmptyStates';
 import Header from '@/components/Header';
 
 interface OrderItem {
@@ -127,22 +128,17 @@ const MyOrders = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">My Orders</h1>
+        <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">My Orders</h1>
         
         {orders.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Receipt className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <CardTitle className="mb-2">No orders yet</CardTitle>
-              <CardDescription>
-                Place your first order from our menu
-              </CardDescription>
-              <Button asChild className="mt-4">
-                <a href="/menu">Browse Menu</a>
-              </Button>
-            </CardContent>
-          </Card>
+          <EmptyState 
+            type="orders"
+            title="No orders yet"
+            description="You haven't placed any orders yet. Start by browsing our menu and adding items to your cart."
+            actionLabel="Browse Menu"
+            actionHref="/menu"
+          />
         ) : (
           <div className="space-y-4">
             {orders.map(order => (
@@ -152,37 +148,37 @@ const MyOrders = () => {
                   onOpenChange={(open) => setExpandedOrder(open ? order.id : null)}
                 >
                   <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div>
-                            <CardTitle className="text-lg">
-                              Order #{order.id.slice(-8)}
-                            </CardTitle>
-                            <CardDescription>
-                              {formatDate(order.created_at)}
-                            </CardDescription>
-                          </div>
-                          <Badge className={getStatusColor(order.status)}>
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <p className="font-semibold">${order.total.toFixed(2)}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {order.order_items.length} item{order.order_items.length !== 1 ? 's' : ''}
-                            </p>
-                          </div>
-                          {expandedOrder === order.id ? (
-                            <ChevronUp className="w-5 h-5" />
-                          ) : (
-                            <ChevronDown className="w-5 h-5" />
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
+                     <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                           <div className="flex-1">
+                             <CardTitle className="text-lg">
+                               Order #{order.id.slice(-8)}
+                             </CardTitle>
+                             <CardDescription>
+                               {formatDate(order.created_at)}
+                             </CardDescription>
+                           </div>
+                           <Badge className={getStatusColor(order.status)}>
+                             {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                           </Badge>
+                         </div>
+                         
+                         <div className="flex items-center justify-between sm:justify-end sm:space-x-4">
+                           <div className="text-left sm:text-right">
+                             <p className="font-semibold">${order.total.toFixed(2)}</p>
+                             <p className="text-sm text-muted-foreground">
+                               {order.order_items.length} item{order.order_items.length !== 1 ? 's' : ''}
+                             </p>
+                           </div>
+                           {expandedOrder === order.id ? (
+                             <ChevronUp className="w-5 h-5" />
+                           ) : (
+                             <ChevronDown className="w-5 h-5" />
+                           )}
+                         </div>
+                       </div>
+                     </CardHeader>
                   </CollapsibleTrigger>
                   
                   <CollapsibleContent>
@@ -192,27 +188,27 @@ const MyOrders = () => {
                         <div>
                           <h4 className="font-medium mb-3">Items</h4>
                           <div className="space-y-3">
-                            {order.order_items.map(item => (
-                              <div key={item.id} className="flex items-center justify-between py-2 border-b border-border/50 last:border-b-0">
-                                <div className="flex items-center space-x-3">
-                                  {item.menu_items.image_url && (
-                                    <div className="w-12 h-12 bg-muted rounded-md overflow-hidden">
-                                      <img
-                                        src={item.menu_items.image_url}
-                                        alt={item.menu_items.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </div>
-                                  )}
-                                  <div>
-                                    <p className="font-medium">{item.menu_items.name}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                      ${item.unit_price.toFixed(2)} × {item.qty}
-                                    </p>
-                                  </div>
-                                </div>
-                                <p className="font-medium">${item.line_total.toFixed(2)}</p>
-                              </div>
+                             {order.order_items.map(item => (
+                               <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2 border-b border-border/50 last:border-b-0">
+                                 <div className="flex items-center space-x-3">
+                                   {item.menu_items.image_url && (
+                                     <div className="w-12 h-12 bg-muted rounded-md overflow-hidden flex-shrink-0">
+                                       <img
+                                         src={item.menu_items.image_url}
+                                         alt={item.menu_items.name}
+                                         className="w-full h-full object-cover"
+                                       />
+                                     </div>
+                                   )}
+                                   <div className="flex-1 min-w-0">
+                                     <p className="font-medium truncate">{item.menu_items.name}</p>
+                                     <p className="text-sm text-muted-foreground">
+                                       ${item.unit_price.toFixed(2)} × {item.qty}
+                                     </p>
+                                   </div>
+                                 </div>
+                                 <p className="font-medium text-right">${item.line_total.toFixed(2)}</p>
+                               </div>
                             ))}
                           </div>
                         </div>

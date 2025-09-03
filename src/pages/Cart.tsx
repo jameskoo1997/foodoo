@@ -197,13 +197,13 @@ export const Cart = () => {
 
       if (orderItemsError) throw orderItemsError;
 
-      toast({
-        title: 'Order placed successfully!',
-        description: 'You will be redirected to the confirmation page.',
-      });
-
       // Clear cart after successful order
       clearCart();
+      
+      toast({
+        title: 'Order placed successfully! 🎉',
+        description: `Order #${order.id.slice(0, 8)} has been confirmed. You'll receive updates on your order status.`,
+      });
 
       navigate(`/order-confirmation/${order.id}`);
     } catch (error) {
@@ -226,32 +226,33 @@ export const Cart = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Shopping Cart</h1>
         
         {items.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
               <CardTitle className="mb-2">Your cart is empty</CardTitle>
-              <CardDescription>
-                Add some items from our menu to get started
+              <CardDescription className="mb-6">
+                Looks like you haven't added anything to your cart yet. 
+                Browse our delicious menu to get started!
               </CardDescription>
-              <Button asChild className="mt-4">
+              <Button asChild>
                 <a href="/menu">Browse Menu</a>
               </Button>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid lg:grid-cols-3 gap-6 md:gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
               {items.map(item => (
                 <Card key={item.id}>
                   <CardContent className="p-4">
-                    <div className="flex items-center space-x-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
                       {item.image_url && (
-                        <div className="w-16 h-16 bg-muted rounded-md overflow-hidden">
+                        <div className="w-16 h-16 bg-muted rounded-md overflow-hidden flex-shrink-0 mx-auto sm:mx-0">
                           <img
                             src={item.image_url}
                             alt={item.name}
@@ -260,12 +261,12 @@ export const Cart = () => {
                         </div>
                       )}
                       
-                      <div className="flex-1">
+                      <div className="flex-1 text-center sm:text-left">
                         <h3 className="font-semibold">{item.name}</h3>
                         <p className="text-muted-foreground">${item.price.toFixed(2)} each</p>
                       </div>
                       
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center justify-center space-x-2">
                         <Button
                           variant="outline"
                           size="sm"
@@ -283,7 +284,7 @@ export const Cart = () => {
                         </Button>
                       </div>
                       
-                      <div className="text-right">
+                      <div className="text-center sm:text-right">
                         <p className="font-semibold">
                           ${(item.price * item.quantity).toFixed(2)}
                         </p>
@@ -291,7 +292,7 @@ export const Cart = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => removeItem(item.id)}
-                          className="text-destructive hover:text-destructive"
+                          className="text-destructive hover:text-destructive mt-1"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
