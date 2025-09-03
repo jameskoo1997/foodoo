@@ -10,6 +10,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useCartRecommendations } from '@/hooks/useRecommendations';
+import { PersonalizedRecommendations } from '@/components/PersonalizedRecommendations';
 import { ShoppingCart, Minus, Plus, Trash2 } from 'lucide-react';
 import Header from '@/components/Header';
 
@@ -275,8 +276,11 @@ export const Cart = () => {
                 </Card>
               ))}
               
-              {/* Recommendations */}
+              {/* Cart-based Recommendations */}
               <CartRecommendations />
+              
+              {/* Personalized Recommendations */}
+              <PersonalizedRecommendations variant="cart" />
             </div>
             
             {/* Order Summary */}

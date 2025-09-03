@@ -8,6 +8,7 @@ import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRecommendations } from '@/hooks/useRecommendations';
+import { PersonalizedRecommendations } from '@/components/PersonalizedRecommendations';
 import { Search, ShoppingCart, Plus, Minus } from 'lucide-react';
 import Header from '@/components/Header';
 
@@ -178,7 +179,10 @@ const RecommendationsSection = ({ itemId, onAddToCart }: {
       
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-4">Our Menu</h1>
+          <h1 className="text-3xl font-bold mb-6">Our Menu</h1>
+          
+          {/* Personalized Recommendations */}
+          <PersonalizedRecommendations className="mb-8" variant="menu" />
           
           {/* Search */}
           <div className="relative mb-6">
