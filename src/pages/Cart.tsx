@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useCartRecommendations } from '@/hooks/useRecommendations';
+import { useAISuggestions } from '@/hooks/useAISuggestions';
 import { PersonalizedRecommendations } from '@/components/PersonalizedRecommendations';
 import { ShoppingCart, Minus, Plus, Trash2, Sparkles, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -23,21 +23,98 @@ interface PaymentMethod {
 const CartRecommendations = () => {
   const { items, addItem } = useCart();
   const cartItemIds = items.map(item => item.id);
-  const { recommendations, loading } = useCartRecommendations(cartItemIds);
+  
+  // Use centralized AI suggestions directly
+  const { aiSuggestions, loading: aiLoading } = useAISuggestions(cartItemIds);
+  const [mbaRecommendations, setMbaRecommendations] = useState<any[]>([]);
+  const [mbaLoading, setMbaLoading] = useState(false);
 
-  if (loading || recommendations.length === 0) return null;
+  useEffect(() => {
+    if (cartItemIds.length === 0) {
+      setMbaRecommendations([]);
+      return;
+    }
+
+    fetchMbaRecommendations();
+  }, [cartItemIds]);
+
+  const fetchMbaRecommendations = async () => {
+    setMbaLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('recommendations')
+        .select(`
+          confidence,
+          recommended_item_id,
+          menu_items!recommendations_recommended_item_id_fkey (
+            id,
+            name,
+            price,
+            image_url,
+            is_active
+          )
+        `)
+        .in('item_id', cartItemIds)
+        .eq('menu_items.is_active', true)
+        .order('confidence', { ascending: false })
+        .limit(3);
+
+      if (error) throw error;
+
+      // Deduplicate and exclude cart items
+      const seenIds = new Set(cartItemIds);
+      const recommendations = new Map();
+
+      data?.forEach(rec => {
+        const itemId = rec.menu_items.id;
+        if (!seenIds.has(itemId) && !recommendations.has(itemId)) {
+          recommendations.set(itemId, {
+            id: itemId,
+            name: rec.menu_items.name,
+            price: rec.menu_items.price,
+            image_url: rec.menu_items.image_url,
+            source: 'mba' as const,
+          });
+          seenIds.add(itemId);
+        }
+      });
+
+      setMbaRecommendations(Array.from(recommendations.values()));
+    } catch (error) {
+      console.error('Error fetching MBA recommendations:', error);
+      setMbaRecommendations([]);
+    } finally {
+      setMbaLoading(false);
+    }
+  };
+
+  // Combine AI and MBA recommendations
+  const allRecommendations = [
+    ...aiSuggestions.map(ai => ({
+      ...ai,
+      source: 'ai' as const
+    })),
+    ...mbaRecommendations.filter(mba => 
+      !aiSuggestions.some(ai => ai.id === mba.id)
+    )
+  ].slice(0, 3);
+
+  const loading = aiLoading || mbaLoading;
+  const hasAI = aiSuggestions.length > 0;
+
+  if (loading || allRecommendations.length === 0) return null;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           Complete your order
-          {recommendations.some(rec => rec.source === 'ai') && (
+          {hasAI && (
             <Sparkles className="w-4 h-4 text-primary" />
           )}
         </CardTitle>
         <CardDescription>
-          {recommendations.some(rec => rec.source === 'ai') 
+          {hasAI 
             ? 'AI-powered suggestions based on your preferences' 
             : 'Customers who bought these items also purchased'
           }
@@ -45,7 +122,7 @@ const CartRecommendations = () => {
       </CardHeader>
       <CardContent>
         <div className="flex space-x-4 overflow-x-auto pb-2">
-          {recommendations.map(rec => (
+          {allRecommendations.map(rec => (
             <div key={rec.id} className="flex-shrink-0 w-48 p-3 bg-muted/50 rounded-lg">
               {rec.image_url && (
                 <div className="w-full h-24 bg-background rounded-md overflow-hidden mb-3">

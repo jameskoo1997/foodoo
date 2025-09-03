@@ -106,7 +106,8 @@ export const useRecommendations = (itemId: string | null) => {
 export const useCartRecommendations = (cartItemIds: string[]) => {
   const [recommendations, setRecommendations] = useState<RecommendedItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const { aiSuggestions, loading: aiLoading, hasFallback } = useAISuggestions(cartItemIds);
+  // Use the centralized AI suggestions without triggering new requests
+  const { aiSuggestions, loading: aiLoading, hasFallback } = useAISuggestions([]);
 
   useEffect(() => {
     if (cartItemIds.length === 0) {
@@ -115,7 +116,7 @@ export const useCartRecommendations = (cartItemIds: string[]) => {
     }
 
     fetchCartRecommendations();
-  }, [cartItemIds, aiSuggestions]);
+  }, [cartItemIds]);
 
   const fetchCartRecommendations = async () => {
     setLoading(true);
