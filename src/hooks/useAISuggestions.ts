@@ -29,21 +29,32 @@ export const useAISuggestions = (cartItemIds: string[]) => {
   const [hasFallback, setHasFallback] = useState(false);
   const [hasShownFallbackToast, setHasShownFallbackToast] = useState(false);
   const [lastCartIds, setLastCartIds] = useState<string[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Reset toast flag when cart items change
-    const cartIdsChanged = JSON.stringify(lastCartIds) !== JSON.stringify(cartItemIds);
+    // Only reset when cart items actually change (not on initial load)
+    const cartIdsChanged = isInitialized && JSON.stringify(lastCartIds) !== JSON.stringify(cartItemIds);
+    
     if (cartIdsChanged) {
       setHasShownFallbackToast(false);
-      setLastCartIds(cartItemIds);
+      setHasFallback(false);
+      setAISuggestions([]);
     }
+    
+    setLastCartIds(cartItemIds);
+    setIsInitialized(true);
 
     if (cartItemIds.length > 0) {
-      fetchAISuggestions();
+      // Only fetch if we don't already have suggestions for this cart state
+      const shouldFetch = cartIdsChanged || !isInitialized || aiSuggestions.length === 0;
+      if (shouldFetch) {
+        fetchAISuggestions();
+      }
     } else {
       setAISuggestions([]);
-      setHasShownFallbackToast(false); // Reset when cart is empty
+      setHasShownFallbackToast(false);
+      setHasFallback(false);
     }
   }, [cartItemIds, user]);
 

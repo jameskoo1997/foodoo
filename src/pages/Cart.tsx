@@ -317,9 +317,6 @@ export const Cart = () => {
               
               {/* Cart-based Recommendations */}
               <CartRecommendations />
-              
-              {/* Personalized Recommendations */}
-              <PersonalizedRecommendations variant="cart" />
             </div>
             
             {/* Order Summary */}
