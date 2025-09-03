@@ -81,6 +81,11 @@ export const AISuggestionsProvider = ({ children }: { children: ReactNode }) => 
     
     try {
       // Call the AI suggest edge function
+      console.log('AI suggestions: Calling ai_suggest function with:', {
+        user_id: user?.id || null,
+        cart_item_ids: cartItemIds,
+      });
+      
       const { data: response, error } = await supabase.functions.invoke('ai_suggest', {
         body: {
           user_id: user?.id || null,
@@ -88,8 +93,11 @@ export const AISuggestionsProvider = ({ children }: { children: ReactNode }) => 
         },
       });
 
+      console.log('AI suggestions: Function response:', { data: response, error });
+
       if (error) {
         console.error('Error calling ai_suggest function:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
         setHasFallback(true);
         return;
       }
