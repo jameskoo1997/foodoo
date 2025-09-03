@@ -169,20 +169,31 @@ const UnifiedRecommendations = () => {
     aiSuggestions: aiSuggestions.length,
     mbaRecommendations: mbaRecommendations.length,
     personalizedRecommendations: personalizedRecommendations.length,
-    uniqueRecommendations: uniqueRecommendations.length
+    uniqueRecommendations: uniqueRecommendations.length,
+    cartItemIds,
+    allRecommendations: allRecommendations.length
   });
 
-  // Show recommendations if we have any, or if we're not loading and cart is not empty
-  if (isLoading || (cartItemIds.length > 0 && !hasRecommendations && !isLoading)) {
+  // Show recommendations if we have any, or show loading/empty state
+  if (isLoading) {
     return cartItemIds.length > 0 ? (
       <Card>
         <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground">
-            {isLoading ? 'Loading recommendations...' : 'No recommendations available at the moment.'}
-          </p>
+          <p className="text-muted-foreground">Loading recommendations...</p>
         </CardContent>
       </Card>
     ) : null;
+  }
+
+  // If not loading and we have no recommendations, show that
+  if (!hasRecommendations && cartItemIds.length > 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <p className="text-muted-foreground">No recommendations available at the moment.</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (!hasRecommendations) return null;
