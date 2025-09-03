@@ -109,17 +109,20 @@ export const AISuggestionsProvider = ({ children }: { children: ReactNode }) => 
       
       const aiResponse: AISuggestionsResponse = response;
       
-      if (!aiResponse.success || aiResponse.fallback) {
+      if (!aiResponse.success) {
         setHasFallback(true);
-        if (aiResponse.fallback && cartItemIds.length > 0 && !hasShownFallbackToast) {
-          toast({
-            title: 'Using rule-based recommendations',
-            description: 'AI suggestions are not available right now, showing market basket analysis instead.',
-            variant: 'default',
-          });
-          setHasShownFallbackToast(true);
-        }
         return;
+      }
+
+      // Handle fallback notifications (but still process suggestions if successful)
+      if (aiResponse.fallback && cartItemIds.length > 0 && !hasShownFallbackToast) {
+        setHasFallback(true);
+        toast({
+          title: 'Using rule-based recommendations',
+          description: 'AI suggestions are not available right now, showing market basket analysis instead.',
+          variant: 'default',
+        });
+        setHasShownFallbackToast(true);
       }
 
       if (aiResponse.suggestions && aiResponse.suggestions.item_ids.length > 0) {
