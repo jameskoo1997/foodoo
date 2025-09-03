@@ -34,6 +34,8 @@ interface UserPreferences {
 }
 
 serve(async (req) => {
+  console.log(`[${new Date().toISOString()}] AI Suggest function called`);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -41,14 +43,16 @@ serve(async (req) => {
 
   try {
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    console.log('Checking OpenAI API key availability:', OPENAI_API_KEY ? 'Found' : 'Not found');
+    console.log(`[${new Date().toISOString()}] Checking OpenAI API key availability:`, OPENAI_API_KEY ? 'Found' : 'Not found');
+    console.log(`[${new Date().toISOString()}] Available env vars:`, Object.keys(Deno.env.toObject()));
     
     if (!OPENAI_API_KEY) {
-      console.log('OpenAI API key not found, falling back to rule-based recommendations');
+      console.log(`[${new Date().toISOString()}] OpenAI API key not found, falling back to rule-based recommendations`);
       return new Response(JSON.stringify({ 
         success: false, 
         error: 'API key not configured',
-        fallback: true 
+        fallback: true,
+        timestamp: new Date().toISOString()
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
