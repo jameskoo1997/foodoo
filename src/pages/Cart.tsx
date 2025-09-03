@@ -11,7 +11,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useCartRecommendations } from '@/hooks/useRecommendations';
 import { PersonalizedRecommendations } from '@/components/PersonalizedRecommendations';
-import { ShoppingCart, Minus, Plus, Trash2 } from 'lucide-react';
+import { ShoppingCart, Minus, Plus, Trash2, Sparkles, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import Header from '@/components/Header';
 
 interface PaymentMethod {
@@ -29,8 +30,18 @@ const CartRecommendations = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Complete your order</CardTitle>
-        <CardDescription>Customers who bought these items also purchased</CardDescription>
+        <CardTitle className="text-lg flex items-center gap-2">
+          Complete your order
+          {recommendations.some(rec => rec.source === 'ai') && (
+            <Sparkles className="w-4 h-4 text-primary" />
+          )}
+        </CardTitle>
+        <CardDescription>
+          {recommendations.some(rec => rec.source === 'ai') 
+            ? 'AI-powered suggestions based on your preferences' 
+            : 'Customers who bought these items also purchased'
+          }
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex space-x-4 overflow-x-auto pb-2">
@@ -46,7 +57,21 @@ const CartRecommendations = () => {
                 </div>
               )}
               <div className="space-y-2">
-                <p className="font-medium text-sm line-clamp-2">{rec.name}</p>
+                <div className="flex items-center gap-1">
+                  <p className="font-medium text-sm line-clamp-2 flex-1">{rec.name}</p>
+                  {rec.source === 'ai' && rec.rationale && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs max-w-48">{rec.rationale}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
                 <p className="text-muted-foreground text-sm">${rec.price.toFixed(2)}</p>
                 <Button
                   size="sm"

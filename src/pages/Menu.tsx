@@ -9,7 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { PersonalizedRecommendations } from '@/components/PersonalizedRecommendations';
-import { Search, ShoppingCart, Plus, Minus } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, Sparkles, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import Header from '@/components/Header';
 
 interface MenuItem {
@@ -132,7 +133,12 @@ const RecommendationsSection = ({ itemId, onAddToCart }: {
 
   return (
     <div className="border-t pt-4">
-      <h3 className="font-semibold mb-3">Frequently bought together</h3>
+      <h3 className="font-semibold mb-3 flex items-center gap-2">
+        Frequently bought together
+        {recommendations.some(rec => rec.source === 'ai') && (
+          <Sparkles className="w-4 h-4 text-primary" />
+        )}
+      </h3>
       <div className="space-y-3">
         {recommendations.map(rec => (
           <div key={rec.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
@@ -147,7 +153,21 @@ const RecommendationsSection = ({ itemId, onAddToCart }: {
                 </div>
               )}
               <div>
-                <p className="font-medium text-sm">{rec.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-sm">{rec.name}</p>
+                  {rec.source === 'ai' && rec.rationale && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="w-3 h-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">{rec.rationale}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
                 <p className="text-muted-foreground text-sm">${rec.price.toFixed(2)}</p>
               </div>
             </div>
