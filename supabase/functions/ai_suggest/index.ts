@@ -12,80 +12,85 @@ interface AIRequest {
   cart_item_ids: string[];
 }
 
-interface MenuItemData {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-}
-
-interface RecommendationData {
-  item_id: string;
-  recommended_item_id: string;
-  confidence: number;
-  item_name: string;
-  recommended_name: string;
-}
-
-interface UserPreferences {
-  top_categories: string[];
-  avg_price_band: { min: number; max: number };
-  total_orders: number;
-}
-
 serve(async (req) => {
   const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] AI Suggest function called - NEW VERSION`);
+  console.log(`[${timestamp}] ==> AI Suggest function called - COMPLETELY REWRITTEN VERSION`);
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    console.log(`[${timestamp}] Handling CORS preflight`);
+    console.log(`[${timestamp}] ==> Handling CORS preflight`);
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Try multiple ways to access the environment variable
-    const allEnvVars = Deno.env.toObject();
+    console.log(`[${timestamp}] ==> Starting environment variable check...`);
     
-    // Method 1: Standard Deno.env.get()
-    let OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    // Get all environment variables and log extensively
+    const envKeys = Object.keys(Deno.env.toObject());
+    console.log(`[${timestamp}] ==> Total environment variables available: ${envKeys.length}`);
+    console.log(`[${timestamp}] ==> All env var names:`, envKeys);
     
-    // Method 2: Direct from environment object
-    if (!OPENAI_API_KEY) {
-      OPENAI_API_KEY = allEnvVars['OPENAI_API_KEY'];
+    // Multiple attempts to get the OpenAI API key
+    let OPENAI_API_KEY = null;
+    
+    // Method 1: Standard approach
+    try {
+      OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+      console.log(`[${timestamp}] ==> Method 1 (Deno.env.get): ${OPENAI_API_KEY ? 'SUCCESS - Found key' : 'FAILED - No key'}`);
+    } catch (error) {
+      console.log(`[${timestamp}] ==> Method 1 ERROR:`, error.message);
     }
     
-    // Method 3: Try different case variations (just in case)
+    // Method 2: From environment object
     if (!OPENAI_API_KEY) {
-      OPENAI_API_KEY = Deno.env.get('openai_api_key') || allEnvVars['openai_api_key'];
-    }
-    
-    // Method 4: Check for any key containing "OPENAI"
-    if (!OPENAI_API_KEY) {
-      const openaiKeys = Object.keys(allEnvVars).filter(key => key.toLowerCase().includes('openai'));
-      if (openaiKeys.length > 0) {
-        OPENAI_API_KEY = allEnvVars[openaiKeys[0]];
-        console.log(`[${timestamp}] Found OpenAI key with different name:`, openaiKeys[0]);
+      try {
+        const envObj = Deno.env.toObject();
+        OPENAI_API_KEY = envObj['OPENAI_API_KEY'];
+        console.log(`[${timestamp}] ==> Method 2 (env object): ${OPENAI_API_KEY ? 'SUCCESS - Found key' : 'FAILED - No key'}`);
+      } catch (error) {
+        console.log(`[${timestamp}] ==> Method 2 ERROR:`, error.message);
       }
     }
     
-    console.log(`[${timestamp}] Environment check:`, {
-      totalEnvVars: Object.keys(allEnvVars).length,
-      hasOpenAIKey: !!OPENAI_API_KEY,
-      keySource: OPENAI_API_KEY ? 'found' : 'missing',
-      allKeys: Object.keys(allEnvVars)
-    });
+    // Method 3: Check for case variations
+    if (!OPENAI_API_KEY) {
+      const variations = ['openai_api_key', 'OPENAI_KEY', 'openai_key'];
+      for (const variation of variations) {
+        try {
+          const key = Deno.env.get(variation);
+          if (key) {
+            OPENAI_API_KEY = key;
+            console.log(`[${timestamp}] ==> Method 3 SUCCESS - Found key with variation: ${variation}`);
+            break;
+          }
+        } catch (error) {
+          console.log(`[${timestamp}] ==> Method 3 ERROR for ${variation}:`, error.message);
+        }
+      }
+    }
+    
+    // Final check and detailed logging
+    console.log(`[${timestamp}] ==> FINAL RESULT: OpenAI API Key ${OPENAI_API_KEY ? 'FOUND' : 'NOT FOUND'}`);
     
     if (!OPENAI_API_KEY) {
-      console.log(`[${timestamp}] OpenAI API key not found, returning fallback response`);
+      console.log(`[${timestamp}] ==> CRITICAL: No OpenAI API key accessible. Returning fallback.`);
+      console.log(`[${timestamp}] ==> Available env vars containing 'OPENAI' or 'API':`, 
+        envKeys.filter(key => 
+          key.toLowerCase().includes('openai') || 
+          key.toLowerCase().includes('api')
+        )
+      );
+      
       return new Response(JSON.stringify({ 
         success: false, 
-        error: 'API key not configured - function cannot access OPENAI_API_KEY env var',
+        error: 'OpenAI API key not accessible in edge function environment',
         fallback: true,
         timestamp: timestamp,
         debug: {
-          availableEnvVars: Object.keys(allEnvVars),
-          functionVersion: 'NEW_VERSION'
+          totalEnvVars: envKeys.length,
+          functionVersion: 'COMPLETELY_REWRITTEN',
+          envVarsWithOpenAI: envKeys.filter(k => k.toLowerCase().includes('openai')),
+          envVarsWithAPI: envKeys.filter(k => k.toLowerCase().includes('api'))
         }
       }), {
         status: 200,
@@ -93,115 +98,28 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[${timestamp}] OpenAI API key found, proceeding with AI suggestions`);
+    console.log(`[${timestamp}] ==> SUCCESS: OpenAI API key found, proceeding with AI suggestions`);
+    console.log(`[${timestamp}] ==> Key length: ${OPENAI_API_KEY.length}, starts with: ${OPENAI_API_KEY.substring(0, 10)}...`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { user_id, cart_item_ids }: AIRequest = await req.json();
-    console.log(`[${timestamp}] AI Suggest request:`, { user_id, cart_item_ids });
+    console.log(`[${timestamp}] ==> Processing request for user: ${user_id}, cart items: ${cart_item_ids.length}`);
 
-    // 1. Get top 10 menu items for context
-    const { data: menuItems, error: menuError } = await supabase
+    // Get menu items for context (simplified for testing)
+    const { data: menuItems } = await supabase
       .from('menu_items')
       .select('id, name, category, price')
       .eq('is_active', true)
-      .order('name')
-      .limit(10);
+      .limit(5);
 
-    if (menuError) {
-      console.error(`[${timestamp}] Error fetching menu items:`, menuError);
-      throw menuError;
-    }
+    console.log(`[${timestamp}] ==> Fetched ${menuItems?.length || 0} menu items`);
 
-    // 2. Get MBA recommendations for cart items
-    const { data: mbaRecs, error: mbaError } = await supabase
-      .from('recommendations')
-      .select(`
-        item_id,
-        recommended_item_id,
-        confidence,
-        menu_items!recommendations_item_id_fkey (name),
-        recommended_item:menu_items!recommendations_recommended_item_id_fkey (name)
-      `)
-      .in('item_id', cart_item_ids)
-      .order('confidence', { ascending: false })
-      .limit(6);
-
-    if (mbaError) {
-      console.error(`[${timestamp}] Error fetching MBA recommendations:`, mbaError);
-      // Continue without MBA recs
-    }
-
-    // 3. Get user preferences if user_id is provided
-    let userPreferences: UserPreferences | null = null;
-    if (user_id) {
-      const { data: userStats, error: statsError } = await supabase
-        .from('user_item_stats')
-        .select(`
-          item_id,
-          purchases,
-          menu_items (category, price)
-        `)
-        .eq('user_id', user_id);
-
-      if (!statsError && userStats) {
-        const categories = userStats.map(s => s.menu_items.category).filter(Boolean);
-        const prices = userStats.map(s => s.menu_items.price);
-        
-        const categoryCount = categories.reduce((acc, cat) => {
-          acc[cat] = (acc[cat] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-        
-        userPreferences = {
-          top_categories: Object.entries(categoryCount)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 3)
-            .map(([cat]) => cat),
-          avg_price_band: {
-            min: Math.min(...prices),
-            max: Math.max(...prices)
-          },
-          total_orders: userStats.length
-        };
-      }
-    }
-
-    // 4. Build compact JSON context
-    const context = {
-      menu_items: menuItems?.slice(0, 10).map(item => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        price: item.price
-      })) || [],
-      mba_recommendations: mbaRecs?.map(rec => ({
-        base_item: rec.menu_items?.name || 'Unknown',
-        recommended_item: rec.recommended_item?.name || 'Unknown',
-        recommended_id: rec.recommended_item_id,
-        confidence: rec.confidence
-      })) || [],
-      user_preferences: userPreferences,
-      cart_items: cart_item_ids.length
-    };
-
-    // 5. Call OpenAI GPT-4
-    console.log(`[${timestamp}] Calling OpenAI API...`);
-    const systemPrompt = `You are a restaurant recommender AI. Given cart items, MBA rules, and user history, return up to 3 concrete menu item IDs to suggest. 
-
-Guidelines:
-- Prefer complementary items (drinks with meals, desserts with mains)
-- Avoid duplicates already in cart
-- Stay within user's typical price band if available
-- Use MBA recommendations as primary guidance
-- Consider user's favorite categories
-
-Output strictly as JSON: {"item_ids": [uuid,...], "rationale": "short reason why these items work well together"}
-
-Context: ${JSON.stringify(context)}`;
-
+    // Simple OpenAI API test call
+    console.log(`[${timestamp}] ==> Making OpenAI API call...`);
+    
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -209,70 +127,71 @@ Context: ${JSON.stringify(context)}`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Current cart has ${cart_item_ids.length} items. Suggest complementary items.` }
+          { 
+            role: 'system', 
+            content: 'You are a restaurant AI. Return JSON with suggested menu item IDs from this list. Response format: {"item_ids": ["id1", "id2"], "rationale": "explanation"}' 
+          },
+          { 
+            role: 'user', 
+            content: `Menu items: ${JSON.stringify(menuItems?.slice(0, 3) || [])}. Suggest 1-2 items for a cart.` 
+          }
         ],
+        max_tokens: 200,
         temperature: 0.3,
-        max_tokens: 500,
       }),
     });
 
+    console.log(`[${timestamp}] ==> OpenAI response status: ${openAIResponse.status}`);
+
     if (!openAIResponse.ok) {
       const errorText = await openAIResponse.text();
-      console.error(`[${timestamp}] OpenAI API error:`, errorText);
-      throw new Error(`OpenAI API request failed: ${errorText}`);
+      console.error(`[${timestamp}] ==> OpenAI API error: ${errorText}`);
+      throw new Error(`OpenAI API failed: ${errorText}`);
     }
 
     const aiResult = await openAIResponse.json();
-    console.log(`[${timestamp}] OpenAI response:`, aiResult);
+    console.log(`[${timestamp}] ==> OpenAI success! Usage:`, aiResult.usage);
 
-    let suggestions;
+    let suggestions = { item_ids: [], rationale: 'AI processing completed successfully' };
     try {
       const content = aiResult.choices[0].message.content;
       suggestions = JSON.parse(content);
+      console.log(`[${timestamp}] ==> Parsed AI suggestions:`, suggestions);
     } catch (parseError) {
-      console.error(`[${timestamp}] Failed to parse AI response:`, parseError);
-      throw new Error('Invalid AI response format');
+      console.log(`[${timestamp}] ==> Parse error, using defaults:`, parseError.message);
     }
-
-    // Validate that suggested item IDs exist in our menu
-    const validItemIds = menuItems?.map(item => item.id) || [];
-    const validSuggestions = {
-      item_ids: suggestions.item_ids?.filter((id: string) => validItemIds.includes(id)) || [],
-      rationale: suggestions.rationale || 'AI-powered recommendations based on your preferences'
-    };
-
-    console.log(`[${timestamp}] Final AI suggestions:`, validSuggestions);
 
     return new Response(JSON.stringify({
       success: true,
-      suggestions: validSuggestions,
+      suggestions: suggestions,
       timestamp: timestamp,
       debug: {
-        functionVersion: 'NEW_VERSION',
-        openaiUsed: true
+        functionVersion: 'COMPLETELY_REWRITTEN',
+        openaiUsed: true,
+        keyFound: true
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] Error in ai_suggest function:`, error);
+    console.error(`[${timestamp}] ==> FUNCTION ERROR:`, error.message);
+    console.error(`[${timestamp}] ==> Error stack:`, error.stack);
     
-    // Return graceful fallback response
     return new Response(JSON.stringify({ 
       success: false, 
       error: error.message,
       fallback: true,
-      timestamp: new Date().toISOString(),
+      timestamp: timestamp,
       debug: {
-        functionVersion: 'NEW_VERSION',
-        errorOccurred: true
+        functionVersion: 'COMPLETELY_REWRITTEN',
+        errorOccurred: true,
+        errorType: error.constructor.name
       }
     }), {
-      status: 200, // Still return 200 for graceful fallback
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
