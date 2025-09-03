@@ -80,10 +80,18 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const updateQuantity = (id: string, quantity: number) => {
+    // Security: Validate quantity limits (1-99)
     if (quantity <= 0) {
       removeItem(id);
       return;
     }
+    
+    // Prevent excessive quantities that could cause issues
+    if (quantity > 99) {
+      console.warn('Quantity limited to maximum of 99 items');
+      quantity = 99;
+    }
+    
     setItems(currentItems =>
       currentItems.map(item =>
         item.id === id ? { ...item, quantity } : item
@@ -103,6 +111,16 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   const applyDiscount = async (code: string) => {
     try {
+      // Security: Basic discount code format validation
+      if (!code || code.length < 3 || code.length > 50) {
+        return { error: 'Invalid discount code format' };
+      }
+      
+      // Security: Sanitize input - allow only alphanumeric and basic symbols
+      if (!/^[a-zA-Z0-9_-]+$/.test(code)) {
+        return { error: 'Discount code contains invalid characters' };
+      }
+      
       const { supabase } = await import('@/integrations/supabase/client');
       
       const { data: discounts, error } = await supabase

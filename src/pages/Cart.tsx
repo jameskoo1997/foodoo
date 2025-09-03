@@ -127,9 +127,20 @@ export const Cart = () => {
   };
 
   const handleApplyDiscount = async () => {
-    if (!discountInput.trim()) return;
+    const trimmedCode = discountInput.trim();
+    if (!trimmedCode) return;
 
-    const result = await applyDiscount(discountInput.trim());
+    // Client-side validation feedback
+    if (trimmedCode.length < 3) {
+      toast({
+        title: 'Invalid Code',
+        description: 'Discount code must be at least 3 characters long',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const result = await applyDiscount(trimmedCode);
     if (result.error) {
       toast({
         title: 'Error',
@@ -279,6 +290,8 @@ export const Cart = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          disabled={item.quantity >= 99}
+                          title={item.quantity >= 99 ? "Maximum quantity reached" : "Increase quantity"}
                         >
                           <Plus className="w-4 h-4" />
                         </Button>
