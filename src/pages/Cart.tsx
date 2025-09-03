@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { Plus, Minus, Trash2, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCartRecommendations } from '@/hooks/useRecommendations';
+import { ShoppingCart, Minus, Plus, Trash2 } from 'lucide-react';
 import Header from '@/components/Header';
 
 interface PaymentMethod {
@@ -17,21 +18,61 @@ interface PaymentMethod {
   name: string;
 }
 
-const Cart = () => {
-  const {
-    items,
-    updateQuantity,
-    removeItem,
-    clearCart,
-    subtotal,
-    total,
-    discountAmount,
-    applyDiscount,
-    discountCode,
-  } = useCart();
+const CartRecommendations = () => {
+  const { items, addItem } = useCart();
+  const cartItemIds = items.map(item => item.id);
+  const { recommendations, loading } = useCartRecommendations(cartItemIds);
+
+  if (loading || recommendations.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Complete your order</CardTitle>
+        <CardDescription>Customers who bought these items also purchased</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex space-x-4 overflow-x-auto pb-2">
+          {recommendations.map(rec => (
+            <div key={rec.id} className="flex-shrink-0 w-48 p-3 bg-muted/50 rounded-lg">
+              {rec.image_url && (
+                <div className="w-full h-24 bg-background rounded-md overflow-hidden mb-3">
+                  <img
+                    src={rec.image_url}
+                    alt={rec.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <p className="font-medium text-sm line-clamp-2">{rec.name}</p>
+                <p className="text-muted-foreground text-sm">${rec.price.toFixed(2)}</p>
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={() => addItem({
+                    id: rec.id,
+                    name: rec.name,
+                    price: rec.price,
+                    image_url: rec.image_url,
+                  })}
+                >
+                  Add to Cart
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export const Cart = () => {
+  const { items, updateQuantity, removeItem, clearCart, subtotal, total, discountAmount, applyDiscount, discountCode } = useCart();
   const { user } = useAuth();
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [discountInput, setDiscountInput] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -55,29 +96,24 @@ const Cart = () => {
       if (error) throw error;
       setPaymentMethods(data || []);
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load payment methods',
-        variant: 'destructive',
-      });
+      console.error('Error fetching payment methods:', error);
     }
   };
 
   const handleApplyDiscount = async () => {
     if (!discountInput.trim()) return;
-    
+
     const result = await applyDiscount(discountInput.trim());
-    
     if (result.error) {
       toast({
-        title: 'Invalid discount',
+        title: 'Error',
         description: result.error,
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Discount applied',
-        description: `Discount code "${discountInput}" has been applied`,
+        title: 'Success',
+        description: 'Discount code applied successfully!',
       });
       setDiscountInput('');
     }
@@ -103,18 +139,17 @@ const Cart = () => {
     }
 
     setLoading(true);
-
     try {
       // Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           user_id: user!.id,
-          subtotal: subtotal,
+          subtotal,
           discount_amount: discountAmount,
-          total: total,
+          total,
           payment_method_id: selectedPaymentMethod,
-          status: 'paid', // In a real app, this would be 'pending' until payment is processed
+          status: 'pending',
         })
         .select()
         .single();
@@ -130,21 +165,23 @@ const Cart = () => {
         line_total: item.price * item.quantity,
       }));
 
-      const { error: itemsError } = await supabase
+      const { error: orderItemsError } = await supabase
         .from('order_items')
         .insert(orderItems);
 
-      if (itemsError) throw itemsError;
+      if (orderItemsError) throw orderItemsError;
 
-      clearCart();
-      
       toast({
         title: 'Order placed successfully!',
-        description: `Order #${order.id.slice(-8)} has been created`,
+        description: 'You will be redirected to the confirmation page.',
       });
+
+      // Clear cart after successful order
+      clearCart();
 
       navigate(`/order-confirmation/${order.id}`);
     } catch (error) {
+      console.error('Error placing order:', error);
       toast({
         title: 'Error',
         description: 'Failed to place order. Please try again.',
@@ -237,6 +274,9 @@ const Cart = () => {
                   </CardContent>
                 </Card>
               ))}
+              
+              {/* Recommendations */}
+              <CartRecommendations />
             </div>
             
             {/* Order Summary */}
@@ -330,5 +370,3 @@ const Cart = () => {
     </div>
   );
 };
-
-export default Cart;

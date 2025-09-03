@@ -83,6 +83,12 @@ const Header = () => {
                       My Orders
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin" className="flex items-center">
+                      <User className="w-4 h-4 mr-2" />
+                      Admin
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={signOut} className="flex items-center">
                     <LogOut className="w-4 h-4 mr-2" />
                     Sign Out

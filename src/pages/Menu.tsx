@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useRecommendations } from '@/hooks/useRecommendations';
+import { Search, ShoppingCart, Plus, Minus } from 'lucide-react';
 import Header from '@/components/Header';
 
 interface MenuItem {
@@ -119,6 +120,57 @@ const Menu = () => {
       </div>
     );
   }
+
+const RecommendationsSection = ({ itemId, onAddToCart }: { 
+  itemId: string; 
+  onAddToCart: (item: MenuItem) => void; 
+}) => {
+  const { recommendations, loading } = useRecommendations(itemId);
+
+  if (loading || recommendations.length === 0) return null;
+
+  return (
+    <div className="border-t pt-4">
+      <h3 className="font-semibold mb-3">Frequently bought together</h3>
+      <div className="space-y-3">
+        {recommendations.map(rec => (
+          <div key={rec.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              {rec.image_url && (
+                <div className="w-12 h-12 bg-background rounded-md overflow-hidden">
+                  <img
+                    src={rec.image_url}
+                    alt={rec.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <div>
+                <p className="font-medium text-sm">{rec.name}</p>
+                <p className="text-muted-foreground text-sm">${rec.price.toFixed(2)}</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onAddToCart({
+                id: rec.id,
+                name: rec.name,
+                description: '',
+                category: '',
+                price: rec.price,
+                image_url: rec.image_url || '',
+                is_active: true,
+              })}
+            >
+              Add
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
   return (
     <div className="min-h-screen bg-background">
@@ -275,6 +327,9 @@ const Menu = () => {
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   Add {itemQuantity} to Cart - ${(selectedItem.price * itemQuantity).toFixed(2)}
                 </Button>
+                
+                {/* Recommendations */}
+                <RecommendationsSection itemId={selectedItem.id} onAddToCart={handleAddToCart} />
               </div>
             </>
           )}
