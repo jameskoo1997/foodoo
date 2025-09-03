@@ -28,13 +28,22 @@ export const useAISuggestions = (cartItemIds: string[]) => {
   const [loading, setLoading] = useState(false);
   const [hasFallback, setHasFallback] = useState(false);
   const [hasShownFallbackToast, setHasShownFallbackToast] = useState(false);
+  const [lastCartIds, setLastCartIds] = useState<string[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
+    // Reset toast flag when cart items change
+    const cartIdsChanged = JSON.stringify(lastCartIds) !== JSON.stringify(cartItemIds);
+    if (cartIdsChanged) {
+      setHasShownFallbackToast(false);
+      setLastCartIds(cartItemIds);
+    }
+
     if (cartItemIds.length > 0) {
       fetchAISuggestions();
     } else {
       setAISuggestions([]);
+      setHasShownFallbackToast(false); // Reset when cart is empty
     }
   }, [cartItemIds, user]);
 
