@@ -44,12 +44,23 @@ serve(async (req) => {
   }
 
   try {
-    // Debug environment variables
+    // Debug environment variables with extreme detail
     const allEnvVars = Deno.env.toObject();
     console.log(`[${timestamp}] All available environment variables:`, Object.keys(allEnvVars));
+    console.log(`[${timestamp}] Environment variables object:`, allEnvVars);
     
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    console.log(`[${timestamp}] OpenAI API key check:`, OPENAI_API_KEY ? `Found (length: ${OPENAI_API_KEY.length})` : 'NOT FOUND');
+    const keyFromObject = allEnvVars['OPENAI_API_KEY'];
+    
+    console.log(`[${timestamp}] OpenAI API key via Deno.env.get():`, OPENAI_API_KEY ? `Found (length: ${OPENAI_API_KEY.length}, starts with: ${OPENAI_API_KEY.substring(0, 7)}...)` : 'NOT FOUND');
+    console.log(`[${timestamp}] OpenAI API key via object:`, keyFromObject ? `Found (length: ${keyFromObject.length}, starts with: ${keyFromObject.substring(0, 7)}...)` : 'NOT FOUND');
+    console.log(`[${timestamp}] Key comparison:`, { 
+      deno_get: typeof OPENAI_API_KEY, 
+      object_get: typeof keyFromObject,
+      are_equal: OPENAI_API_KEY === keyFromObject,
+      deno_truthy: !!OPENAI_API_KEY,
+      object_truthy: !!keyFromObject
+    });
     
     if (!OPENAI_API_KEY) {
       console.log(`[${timestamp}] OpenAI API key not found, returning fallback response`);
