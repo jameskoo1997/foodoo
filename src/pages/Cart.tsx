@@ -44,6 +44,7 @@ const UnifiedRecommendations = () => {
 
   const fetchAllRecommendations = async () => {
     setLoading(true);
+    console.log('Fetching recommendations for cart items:', cartItemIds);
     try {
       // Fetch MBA recommendations (cart-based)
       const mbaPromise = supabase
@@ -86,6 +87,9 @@ const UnifiedRecommendations = () => {
 
       const [mbaResult, personalizedResult] = await Promise.all([mbaPromise, personalizedPromise]);
 
+      console.log('MBA recommendations result:', mbaResult);
+      console.log('Personalized recommendations result:', personalizedResult);
+
       if (mbaResult.error) throw mbaResult.error;
       if (personalizedResult.error) throw personalizedResult.error;
 
@@ -125,6 +129,9 @@ const UnifiedRecommendations = () => {
 
       setMbaRecommendations(Array.from(mbaRecs.values()));
       setPersonalizedRecommendations(Array.from(personalizedRecs.values()));
+      
+      console.log('Final MBA recommendations:', Array.from(mbaRecs.values()));
+      console.log('Final personalized recommendations:', Array.from(personalizedRecs.values()));
     } catch (error) {
       console.error('Error fetching recommendations:', error);
       setMbaRecommendations([]);
@@ -153,7 +160,30 @@ const UnifiedRecommendations = () => {
   const hasAI = aiSuggestions.length > 0;
   const hasRecommendations = uniqueRecommendations.length > 0;
 
-  if (isLoading || !hasRecommendations) return null;
+  console.log('UnifiedRecommendations state:', {
+    isLoading,
+    hasAI,
+    hasRecommendations,
+    aiSuggestions: aiSuggestions.length,
+    mbaRecommendations: mbaRecommendations.length,
+    personalizedRecommendations: personalizedRecommendations.length,
+    uniqueRecommendations: uniqueRecommendations.length
+  });
+
+  // Show recommendations if we have any, or if we're not loading and cart is not empty
+  if (isLoading || (cartItemIds.length > 0 && !hasRecommendations && !isLoading)) {
+    return cartItemIds.length > 0 ? (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <p className="text-muted-foreground">
+            {isLoading ? 'Loading recommendations...' : 'No recommendations available at the moment.'}
+          </p>
+        </CardContent>
+      </Card>
+    ) : null;
+  }
+
+  if (!hasRecommendations) return null;
 
   return (
     <Card>
