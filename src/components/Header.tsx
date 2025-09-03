@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { ShoppingCart, User, LogOut, Menu, Home, Receipt } from 'lucide-react';
+import { ShoppingCart, User, LogOut, Menu, Home, Receipt, TrendingUp } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,6 +87,12 @@ const Header = () => {
                     <Link to="/admin" className="flex items-center">
                       <User className="w-4 h-4 mr-2" />
                       Admin
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/analytics" className="flex items-center">
+                      <TrendingUp className="w-4 h-4 mr-2" />
+                      Analytics
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={signOut} className="flex items-center">
