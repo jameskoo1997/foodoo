@@ -27,6 +27,7 @@ export const useAISuggestions = (cartItemIds: string[]) => {
   const [aiSuggestions, setAISuggestions] = useState<AISuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasFallback, setHasFallback] = useState(false);
+  const [hasShownFallbackToast, setHasShownFallbackToast] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -60,17 +61,21 @@ export const useAISuggestions = (cartItemIds: string[]) => {
       
       if (!aiResponse.success || aiResponse.fallback) {
         setHasFallback(true);
-        if (aiResponse.fallback && cartItemIds.length > 0) {
+        if (aiResponse.fallback && cartItemIds.length > 0 && !hasShownFallbackToast) {
           toast({
             title: 'Using rule-based recommendations',
             description: 'AI suggestions are not available right now, showing market basket analysis instead.',
             variant: 'default',
           });
+          setHasShownFallbackToast(true);
         }
         return;
       }
 
       if (aiResponse.suggestions && aiResponse.suggestions.item_ids.length > 0) {
+        // Reset fallback toast flag when AI suggestions are working
+        setHasShownFallbackToast(false);
+        
         // Fetch detailed menu item information for the suggested IDs
         const { data: menuItems, error: menuError } = await supabase
           .from('menu_items')
