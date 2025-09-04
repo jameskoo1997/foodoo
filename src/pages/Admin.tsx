@@ -128,11 +128,16 @@ export const Admin = () => {
         is_active: true,
       }));
 
+      console.log('Attempting to insert menu items:', menuItems);
+      
       const { error } = await supabase
         .from('menu_items')
         .insert(menuItems);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase insert error:', error);
+        throw error;
+      }
 
       toast({
         title: 'Success',
