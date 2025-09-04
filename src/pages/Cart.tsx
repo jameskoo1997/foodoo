@@ -341,36 +341,61 @@ export const Cart = () => {
 
     setLoading(true);
     try {
+      console.log('Starting checkout process...', {
+        user: user?.id,
+        subtotal,
+        discountAmount,
+        total,
+        paymentMethodId: selectedPaymentMethod,
+        itemsCount: items.length
+      });
+
       // Create order
+      const orderData = {
+        user_id: user!.id,
+        subtotal: Number(subtotal),
+        discount_amount: Number(discountAmount),
+        total: Number(total),
+        payment_method_id: selectedPaymentMethod,
+        status: 'pending' as const,
+      };
+
+      console.log('Creating order with data:', orderData);
+
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .insert({
-          user_id: user!.id,
-          subtotal,
-          discount_amount: discountAmount,
-          total,
-          payment_method_id: selectedPaymentMethod,
-          status: 'pending',
-        })
+        .insert(orderData)
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('Order creation error:', orderError);
+        throw orderError;
+      }
+
+      console.log('Order created successfully:', order);
 
       // Create order items
       const orderItems = items.map(item => ({
         order_id: order.id,
         item_id: item.id,
         qty: item.quantity,
-        unit_price: item.price,
-        line_total: item.price * item.quantity,
+        unit_price: Number(item.price),
+        line_total: Number(item.price * item.quantity),
       }));
+
+      console.log('Creating order items:', orderItems);
 
       const { error: orderItemsError } = await supabase
         .from('order_items')
         .insert(orderItems);
 
-      if (orderItemsError) throw orderItemsError;
+      if (orderItemsError) {
+        console.error('Order items creation error:', orderItemsError);
+        throw orderItemsError;
+      }
+
+      console.log('Order items created successfully');
 
       // Clear cart after successful order
       clearCart();
@@ -385,7 +410,7 @@ export const Cart = () => {
       console.error('Error placing order:', error);
       toast({
         title: 'Error',
-        description: 'Failed to place order. Please try again.',
+        description: `Failed to place order: ${error.message}. Please try again.`,
         variant: 'destructive',
       });
     } finally {
