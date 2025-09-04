@@ -135,8 +135,13 @@ export const Admin = () => {
         .insert(menuItems);
 
       if (error) {
-        console.error('Supabase insert error:', error);
-        throw error;
+        console.error('Supabase insert error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw new Error(`Database error: ${error.message}`);
       }
 
       toast({
@@ -147,10 +152,10 @@ export const Admin = () => {
       setMenuFile(null);
       setMenuPreview([]);
     } catch (error) {
-      console.error('Import error:', error);
+      console.error('Import error details:', error);
       toast({
         title: 'Error',
-        description: 'Failed to import menu items. Please check the file format and try again.',
+        description: error instanceof Error ? error.message : 'Failed to import menu items. Please check the file format and try again.',
         variant: 'destructive',
       });
     } finally {
