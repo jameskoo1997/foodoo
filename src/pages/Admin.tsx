@@ -180,29 +180,69 @@ export const Admin = () => {
       if (menuError) throw menuError;
 
       const nameToId = new Map(menuItems.map(item => [item.name.toLowerCase(), item.id]));
-
+      const missingItems = new Set<string>();
+      
       const recommendations = dataRows
-        .map(row => {
-          const baseItemId = nameToId.get(row[0].toLowerCase());
-          const recommendedItemId = nameToId.get(row[1].toLowerCase());
+        .map((row, index) => {
+          const baseItemName = row[0]?.trim();
+          const recommendedItemName = row[1]?.trim();
           
-          if (!baseItemId || !recommendedItemId) return null;
+          if (!baseItemName || !recommendedItemName) {
+            console.warn(`Row ${index + 2}: Missing item names`);
+            return null;
+          }
+          
+          const baseItemId = nameToId.get(baseItemName.toLowerCase());
+          const recommendedItemId = nameToId.get(recommendedItemName.toLowerCase());
+          
+          if (!baseItemId) {
+            missingItems.add(`Base item: "${baseItemName}"`);
+          }
+          if (!recommendedItemId) {
+            missingItems.add(`Recommended item: "${recommendedItemName}"`);
+          }
+          
+          if (!baseItemId || !recommendedItemId) {
+            console.warn(`Row ${index + 2}: Could not find IDs for items "${baseItemName}" -> "${recommendedItemName}"`);
+            return null;
+          }
           
           return {
             item_id: baseItemId,
             recommended_item_id: recommendedItemId,
-            confidence: parseFloat(row[2]),
-            lift: parseFloat(row[3]),
-            support: parseFloat(row[4]),
+            confidence: parseFloat(row[2]) || 0,
+            lift: parseFloat(row[3]) || 1,
+            support: parseFloat(row[4]) || 0.01,
           };
         })
         .filter(Boolean);
+
+      console.log(`Processing ${dataRows.length} rows, found ${recommendations.length} valid recommendations`);
+      
+      if (missingItems.size > 0) {
+        console.error('Missing items in database:', Array.from(missingItems));
+        console.log('Available items in database:', menuItems.map(item => item.name));
+        
+        throw new Error(`Could not find ${missingItems.size} items in database. Check console for details.`);
+      }
+
+      if (recommendations.length === 0) {
+        throw new Error('No valid recommendations to import. Please check your CSV format and item names.');
+      }
 
       const { error } = await supabase
         .from('recommendations')
         .insert(recommendations);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw new Error(`Database error: ${error.message}`);
+      }
 
       toast({
         title: 'Success',
@@ -212,10 +252,10 @@ export const Admin = () => {
       setRecommendationsFile(null);
       setRecommendationsPreview([]);
     } catch (error) {
-      console.error('Import error:', error);
+      console.error('Import error details:', error);
       toast({
         title: 'Error',
-        description: 'Failed to import recommendations. Please check the file format and item names.',
+        description: error instanceof Error ? error.message : 'Failed to import recommendations. Please check the file format and item names.',
         variant: 'destructive',
       });
     } finally {
