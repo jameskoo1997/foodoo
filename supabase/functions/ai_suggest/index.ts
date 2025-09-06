@@ -176,10 +176,33 @@ serve(async (req) => {
     let suggestions = { item_ids: [], rationale: 'AI processing completed successfully' };
     try {
       const content = aiResult.choices[0].message.content;
-      suggestions = JSON.parse(content);
+      console.log(`[${timestamp}] ==> Raw AI content:`, content);
+      
+      // Try to extract JSON from the response if it's wrapped in other text
+      const jsonMatch = content.match(/\{[^}]*"item_ids"[^}]*\}/);
+      const jsonString = jsonMatch ? jsonMatch[0] : content;
+      
+      suggestions = JSON.parse(jsonString);
       console.log(`[${timestamp}] ==> Parsed AI suggestions:`, suggestions);
+      
+      // Ensure item_ids is an array and contains valid menu item IDs
+      if (!Array.isArray(suggestions.item_ids)) {
+        suggestions.item_ids = [];
+      }
+      
+      // Filter to only include valid menu item IDs from our database
+      const validItemIds = menuItems?.map(item => item.id) || [];
+      suggestions.item_ids = suggestions.item_ids.filter(id => validItemIds.includes(id));
+      
     } catch (parseError) {
-      console.log(`[${timestamp}] ==> Parse error, using defaults:`, parseError.message);
+      console.log(`[${timestamp}] ==> Parse error, using fallback logic:`, parseError.message);
+      
+      // Fallback: suggest complementary items from different categories
+      const randomItems = menuItems?.slice(0, 2) || [];
+      suggestions = {
+        item_ids: randomItems.map(item => item.id),
+        rationale: 'Complementary items selected as fallback due to parsing error'
+      };
     }
 
     return new Response(JSON.stringify({
