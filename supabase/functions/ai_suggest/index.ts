@@ -147,7 +147,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-nano-2025-08-07',
         messages: [
           { 
             role: 'system', 
@@ -158,8 +158,7 @@ serve(async (req) => {
             content: `Menu items: ${JSON.stringify(menuItems?.slice(0, 3) || [])}. Suggest 1-2 items for a cart.` 
           }
         ],
-        max_tokens: 200,
-        temperature: 0.3,
+        max_completion_tokens: 200,
       }),
     });
 
