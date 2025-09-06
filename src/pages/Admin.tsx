@@ -210,9 +210,9 @@ export const Admin = () => {
           return {
             item_id: baseItemId,
             recommended_item_id: recommendedItemId,
-            confidence: parseFloat(row[2]) || 0,
-            lift: parseFloat(row[3]) || 1,
-            support: parseFloat(row[4]) || 0.01,
+            confidence: parseFloat(row[3]) || 0,
+            lift: parseFloat(row[4]) || 1,
+            support: parseFloat(row[2]) || 0.01,
           };
         })
         .filter(Boolean);
@@ -506,7 +506,7 @@ export const Admin = () => {
                 Recommendations Import
               </CardTitle>
               <CardDescription>
-                Upload a CSV file with columns: base_item_name, recommended_item_name, confidence, lift, support
+                Upload a CSV file with columns: base_item_name, recommended_item_name, support, confidence, lift
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
