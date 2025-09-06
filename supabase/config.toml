@@ -1,1 +1,7 @@
 project_id = "agosjbxdcmjsfyzvtuva"
+
+[functions.refresh_recommendations]
+verify_jwt = true
+
+[functions.ai_suggest]
+verify_jwt = false

@@ -263,6 +263,43 @@ export const Admin = () => {
     }
   };
 
+  const refreshMBARecommendations = async () => {
+    setLoading(true);
+    try {
+      console.log('Calling MBA refresh function...');
+      
+      const { data, error } = await supabase.functions.invoke('refresh_recommendations', {
+        body: {}
+      });
+
+      if (error) {
+        console.error('Function invocation error:', error);
+        throw new Error(error.message);
+      }
+
+      console.log('MBA refresh response:', data);
+
+      if (data.success) {
+        toast({
+          title: 'MBA Analysis Complete!',
+          description: `Updated ${data.recommendations_updated} recommendations. Analysis found ${data.analysis?.total_orders || 0} orders with ${data.analysis?.unique_items || 0} unique items.`,
+        });
+      } else {
+        throw new Error(data.error || 'Failed to refresh recommendations');
+      }
+
+    } catch (error) {
+      console.error('MBA refresh error:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to refresh MBA recommendations. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const seedDemoData = async () => {
     setLoading(true);
     try {
@@ -423,6 +460,45 @@ export const Admin = () => {
                 </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* MBA Recommendations Refresh */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              MBA Recommendations Refresh
+            </CardTitle>
+            <CardDescription>
+              Analyze order data to automatically calculate Market Basket Analysis metrics (support, lift, confidence) and update recommendations
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+              <p className="text-sm text-muted-foreground">
+                This analysis will:
+              </p>
+              <ul className="text-sm space-y-1 ml-4">
+                <li>• Analyze completed orders to find item associations</li>
+                <li>• Calculate MBA metrics: Support, Confidence, and Lift</li>
+                <li>• Replace existing recommendations with data-driven insights</li>
+                <li>• Filter results to only include statistically significant patterns</li>
+              </ul>
+              
+              <Button
+                onClick={refreshMBARecommendations}
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? 'Analyzing Orders...' : (
+                  <>
+                    <Database className="w-4 h-4 mr-2" />
+                    Refresh MBA Recommendations
+                  </>
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
