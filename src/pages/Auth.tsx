@@ -83,7 +83,7 @@ const Auth = () => {
       <div className="container mx-auto px-4 py-8 flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle>Welcome to FoodAI</CardTitle>
+            <CardTitle>Welcome to Foodoo</CardTitle>
             <CardDescription>
               Sign in to your account or create a new one
             </CardDescription>

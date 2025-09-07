@@ -15,7 +15,7 @@ const Index = () => {
         <div className="text-center space-y-8 max-w-4xl mx-auto">
           <div className="space-y-4">
             <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              Welcome to FoodAI
+              Welcome to Foodoo
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Discover personalized food recommendations powered by AI. Order from our curated menu and enjoy intelligent suggestions based on your preferences.
