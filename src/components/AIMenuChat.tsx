@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageCircle, Send, Sparkles, ShoppingCart, Loader2 } from 'lucide-react';
+import { useClientSLM } from '@/hooks/useClientSLM';
+import { MessageCircle, Send, Sparkles, ShoppingCart, Loader2, Cpu, Cloud, Zap } from 'lucide-react';
 
 interface MenuItem {
   id: string;
@@ -34,7 +35,22 @@ export const AIMenuChat = ({ onAddToCart }: AIMenuChatProps) => {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [aiModel, setAiModel] = useState<'openai' | 'huggingface' | 'client-slm'>('openai');
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const { toast } = useToast();
+  const { generateRecommendations, isLoading: slmLoading, loadModel } = useClientSLM();
+
+  // Load menu items for client-side SLM
+  useEffect(() => {
+    const fetchMenuItems = async () => {
+      const { data } = await supabase
+        .from('menu_items')
+        .select('*')
+        .eq('is_active', true);
+      if (data) setMenuItems(data);
+    };
+    fetchMenuItems();
+  }, []);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -47,32 +63,74 @@ export const AIMenuChat = ({ onAddToCart }: AIMenuChatProps) => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const query = inputValue;
     setInputValue('');
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('ai-menu-assistant', {
-        body: { query: inputValue }
-      });
+      let aiMessage: ChatMessage;
 
-      if (error) throw error;
+      if (aiModel === 'client-slm') {
+        // Use client-side SLM
+        const result = await generateRecommendations(query, menuItems);
+        aiMessage = {
+          id: `ai-${Date.now()}`,
+          type: 'ai',
+          content: result.response,
+          suggestions: result.suggestions,
+          timestamp: new Date(),
+        };
+      } else {
+        // Use server-side AI (OpenAI or HuggingFace)
+        const functionName = aiModel === 'openai' ? 'ai-menu-assistant' : 'huggingface-assistant';
+        const { data, error } = await supabase.functions.invoke(functionName, {
+          body: { query }
+        });
 
-      const aiMessage: ChatMessage = {
-        id: `ai-${Date.now()}`,
-        type: 'ai',
-        content: data.response,
-        suggestions: data.suggestions || [],
-        timestamp: new Date(),
-      };
+        if (error) {
+          // Fallback to client-side SLM if server fails
+          console.log('Server AI failed, falling back to client-side SLM');
+          const result = await generateRecommendations(query, menuItems);
+          aiMessage = {
+            id: `ai-${Date.now()}`,
+            type: 'ai',
+            content: `${result.response} (Powered by client-side AI)`,
+            suggestions: result.suggestions,
+            timestamp: new Date(),
+          };
+        } else {
+          aiMessage = {
+            id: `ai-${Date.now()}`,
+            type: 'ai',
+            content: data.response,
+            suggestions: data.suggestions || [],
+            timestamp: new Date(),
+          };
+        }
+      }
 
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error('Error calling AI assistant:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to get AI suggestions. Please try again.',
-        variant: 'destructive',
-      });
+      
+      // Final fallback to client-side SLM
+      try {
+        const result = await generateRecommendations(query, menuItems);
+        const aiMessage: ChatMessage = {
+          id: `ai-${Date.now()}`,
+          type: 'ai',
+          content: `${result.response} (Offline mode)`,
+          suggestions: result.suggestions,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, aiMessage]);
+      } catch (slmError) {
+        toast({
+          title: 'Error',
+          description: 'All AI services are currently unavailable. Please try again later.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -87,6 +145,43 @@ export const AIMenuChat = ({ onAddToCart }: AIMenuChatProps) => {
 
   return (
     <div className="mb-6">
+      {/* AI Model Selector */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-sm font-medium">AI Model:</span>
+        <div className="flex gap-1">
+          <Button
+            variant={aiModel === 'openai' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setAiModel('openai')}
+            className="h-7 text-xs"
+          >
+            <Cloud className="w-3 h-3 mr-1" />
+            OpenAI
+          </Button>
+          <Button
+            variant={aiModel === 'huggingface' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setAiModel('huggingface')}
+            className="h-7 text-xs"
+          >
+            <Zap className="w-3 h-3 mr-1" />
+            HuggingFace
+          </Button>
+          <Button
+            variant={aiModel === 'client-slm' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setAiModel('client-slm');
+              loadModel();
+            }}
+            className="h-7 text-xs"
+          >
+            <Cpu className="w-3 h-3 mr-1" />
+            Local AI
+          </Button>
+        </div>
+      </div>
+
       {/* Chat Toggle/Input */}
       <div className="relative">
         <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border">
@@ -101,11 +196,11 @@ export const AIMenuChat = ({ onAddToCart }: AIMenuChatProps) => {
           />
           <Button
             onClick={handleSendMessage}
-            disabled={isLoading || !inputValue.trim()}
+            disabled={isLoading || slmLoading || !inputValue.trim()}
             size="sm"
             className="min-w-[40px]"
           >
-            {isLoading ? (
+            {(isLoading || slmLoading) ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Send className="w-4 h-4" />
