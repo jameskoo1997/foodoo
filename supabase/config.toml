@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.ai_suggest]
 verify_jwt = false
+
+[functions.ai-menu-assistant]
+verify_jwt = false

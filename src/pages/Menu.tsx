@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { PersonalizedRecommendations } from '@/components/PersonalizedRecommendations';
 import { EmptyState } from '@/components/EmptyStates';
+import { AIMenuChat } from '@/components/AIMenuChat';
 import { Search, ShoppingCart, Plus, Minus, Sparkles, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import Header from '@/components/Header';
@@ -201,6 +202,9 @@ const RecommendationsSection = ({ itemId, onAddToCart }: {
         <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
           <div className="mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Our Menu</h1>
+          
+          {/* AI Menu Chat */}
+          <AIMenuChat onAddToCart={handleAddToCart} />
           
           {/* Personalized Recommendations */}
           <PersonalizedRecommendations className="mb-8" variant="menu" />
